@@ -5,3 +5,4 @@ langdetect
 redis
 boto3
 playwright-stealth
+-e ../shared
