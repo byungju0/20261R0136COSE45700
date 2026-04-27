@@ -2,3 +2,4 @@ redis
 boto3
 httpx
 python-dotenv
+-e ../shared
