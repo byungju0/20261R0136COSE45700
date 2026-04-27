@@ -4,5 +4,5 @@ beautifulsoup4
 langdetect
 redis
 boto3
-playwright-stealth
+playwright-stealth==2.0.3
 -e ../shared
