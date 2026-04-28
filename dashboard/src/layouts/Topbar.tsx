@@ -6,20 +6,17 @@ type Theme = 'light' | 'dark';
 
 function readInitialTheme(): Theme {
   if (typeof window === 'undefined') return 'light';
-  // index.html의 인라인 스크립트가 이미 data-theme을 설정 — 그 값을 신뢰원으로.
+  // index.html 인라인 스크립트가 이미 data-theme을 설정 — 동일 우선순위 logic이지만
+  // 신뢰원은 DOM. localStorage는 Safari Private Mode에서 throw 가능 → guarded.
   const fromDom = document.documentElement.getAttribute('data-theme');
   if (fromDom === 'dark' || fromDom === 'light') return fromDom;
   try {
     const saved = localStorage.getItem('theme');
     if (saved === 'dark' || saved === 'light') return saved;
   } catch {
-    /* Private Mode 등에서 localStorage 접근 차단 → fallthrough */
+    /* Private Mode → fallthrough */
   }
-  try {
-    if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark';
-  } catch {
-    /* matchMedia 미지원 환경 fallthrough */
-  }
+  if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark';
   return 'light';
 }
 
@@ -27,11 +24,16 @@ export function Topbar() {
   const [theme, setTheme] = useState<Theme>(readInitialTheme);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    // 변경 없는 쓰기 차단 — StrictMode 이중 effect / 초기 mount no-op 모두 흡수
+    if (document.documentElement.getAttribute('data-theme') !== theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
     try {
-      localStorage.setItem('theme', theme);
+      if (localStorage.getItem('theme') !== theme) {
+        localStorage.setItem('theme', theme);
+      }
     } catch {
-      /* localStorage 쓰기 실패는 무시 (인메모리만 유지) */
+      /* localStorage 쓰기 실패 무시 */
     }
   }, [theme]);
 

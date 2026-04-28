@@ -83,7 +83,9 @@ function ActivityItem({
         gap: '12px',
         padding: '12px 0',
         borderColor: 'var(--border-1)',
-        ...(variant === 'self' && { background: 'oklch(0.55 0.18 235 / 0.05)' }),
+        ...(variant === 'self' && {
+          background: 'color-mix(in oklch, var(--accent) 5%, transparent)',
+        }),
       }}
     >
       <span

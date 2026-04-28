@@ -61,12 +61,11 @@ export function DetectionListPage() {
   const [focusedIdx, setFocusedIdx] = useState(0);
   const [visited, setVisited] = useState<Set<number>>(new Set());
 
-  // 필터 변경 시 focus 리셋. searchParams 자체가 변할 때만 (filter는 useMemo 결과).
+  // 필터 변경 시 focus 리셋. filter는 useMemo 결과라 ref equality로 충분.
   // "previous state in render" 패턴 — useEffect+setState 대신.
-  const filterKey = JSON.stringify(filter);
-  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
-  if (prevFilterKey !== filterKey) {
-    setPrevFilterKey(filterKey);
+  const [prevFilter, setPrevFilter] = useState(filter);
+  if (prevFilter !== filter) {
+    setPrevFilter(filter);
     setFocusedIdx(0);
   }
 

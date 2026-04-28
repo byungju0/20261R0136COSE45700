@@ -19,8 +19,8 @@ export function Sidebar() {
       }}
     >
       <div
-        className="flex items-center gap-2.5 px-2 pb-7 text-base font-semibold tracking-tight"
-        style={{ letterSpacing: '-0.02em' }}
+        className="flex items-center gap-2.5 px-2 pb-7 text-base font-semibold"
+        style={{ letterSpacing: 'var(--tracking-tight)' }}
       >
         <span
           className="font-mono inline-flex size-6 items-center justify-center rounded-[5px] text-xs font-bold"
