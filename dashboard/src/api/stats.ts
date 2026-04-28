@@ -1,18 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from './client';
-import type { StatsResponse } from '../types/api';
+import type { StatsPeriod, StatsResponse } from '@/types/api';
 
-export const STATS_QUERY_KEY = ['stats'] as const;
+export const STATS_QUERY_KEY = 'stats' as const;
 
-async function fetchStats(): Promise<StatsResponse> {
-  const response = await apiClient.get<StatsResponse>('/stats');
+async function fetchStats(period?: StatsPeriod): Promise<StatsResponse> {
+  const url = period ? `/stats?period=${period}` : '/stats';
+  const response = await apiClient.get<StatsResponse>(url);
   return response.data;
 }
 
-export function useStatsQuery() {
+export function useStatsQuery(period?: StatsPeriod) {
   return useQuery({
-    queryKey: STATS_QUERY_KEY,
-    queryFn: fetchStats,
+    queryKey: [STATS_QUERY_KEY, { period: period ?? null }],
+    queryFn: () => fetchStats(period),
     refetchInterval: 60_000,
     staleTime: 30_000,
   });

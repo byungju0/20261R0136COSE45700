@@ -65,3 +65,21 @@ export interface ProblemDetail {
   instance?: string;
   errorCode: string;
 }
+
+export interface DetectionFilter {
+  date?: string; // YYYY-MM-DD
+  site?: string;
+  type?: DetectionType;
+  lang?: Language;
+  /** Journey 2 — 수동 트리거 후 새로 들어온 탐지만 */
+  since?: 'triggered';
+  page?: number;
+  size?: number;
+}
+
+export interface CrawlTriggerResponse {
+  status: 'triggered' | 'in_progress';
+  estimatedMinutes: number;
+}
+
+export type StatsPeriod = 'weekly' | 'monthly';
