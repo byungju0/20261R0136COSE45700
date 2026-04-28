@@ -6,15 +6,20 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts';
-import { CHART_PALETTE } from './colors';
+import { CHART_PALETTE_VARS } from './colors';
 
 interface PieChartProps {
   data: Array<{ name: string; value: number }>;
-  colors?: string[];
+  /** Optional override for slice colors. Defaults to CHART_PALETTE_VARS (CSS variables). */
+  colors?: readonly string[];
   height?: number;
 }
 
-export function PieChart({ data, colors = CHART_PALETTE, height = 300 }: PieChartProps) {
+export function PieChart({
+  data,
+  colors = CHART_PALETTE_VARS,
+  height = 260,
+}: PieChartProps) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <RechartsPieChart>
