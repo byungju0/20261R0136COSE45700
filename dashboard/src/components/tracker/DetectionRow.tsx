@@ -43,6 +43,13 @@ export function DetectionRow({
     locale: ko,
   });
 
+  const severity: 'high' | 'medium' | 'low' =
+    detection.confidence >= 0.8
+      ? 'high'
+      : detection.confidence >= 0.5
+        ? 'medium'
+        : 'low';
+
   return (
     <TableRow
       ref={ref}
@@ -51,6 +58,7 @@ export function DetectionRow({
       aria-selected={focused}
       data-focused={focused || undefined}
       data-visited={visited || undefined}
+      data-severity={severity}
       onClick={onSelect}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
@@ -60,6 +68,10 @@ export function DetectionRow({
       }}
       className={cn(
         'cursor-pointer',
+        // row-level severity: 좌측 6px 색 bar (box-shadow inset) + 약한 tint
+        'data-[severity=high]:shadow-[inset_6px_0_0_var(--confidence-high-bg)] data-[severity=high]:bg-[oklch(0.52_0.21_25/0.06)]',
+        'data-[severity=medium]:shadow-[inset_6px_0_0_var(--confidence-medium-bg)] data-[severity=medium]:bg-[oklch(0.55_0.16_55/0.05)]',
+        // focused 상태는 severity보다 우선 (override)
         'data-[focused]:bg-accent data-[focused]:ring-ring/40 data-[focused]:ring-2',
         'data-[visited]:opacity-70',
       )}

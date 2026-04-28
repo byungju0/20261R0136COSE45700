@@ -1,4 +1,5 @@
 import type { HTMLAttributes } from 'react';
+import { AlertTriangle, AlertCircle, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ConfidenceBadgeProps extends HTMLAttributes<HTMLSpanElement> {
@@ -20,38 +21,53 @@ const LEVEL_LABEL: Record<Level, string> = {
   low: '낮음',
 };
 
-const LEVEL_CLASSES: Record<Level, string> = {
-  high: 'bg-confidence-high/10 text-confidence-high',
-  medium: 'bg-confidence-medium/10 text-confidence-medium',
-  low: 'bg-confidence-low/10 text-confidence-low',
+const LEVEL_CHIP: Record<Level, string> = {
+  high: 'bg-confidence-high-bg text-white',
+  medium: 'bg-confidence-medium-bg text-white',
+  low: 'border border-border text-muted-foreground',
 };
 
+const LEVEL_ICON = {
+  high: AlertTriangle,
+  medium: AlertCircle,
+  low: Circle,
+} as const;
+
+/**
+ * 신뢰도 배지 — 44×44 정사각 filled chip (N1 패턴).
+ * pre-attentive 처리 위해 색+크기+아이콘 redundant encoding.
+ * - high: red filled, ⚠ icon
+ * - medium: orange filled, ⓘ icon
+ * - low: outlined neutral, dot icon
+ */
 export function ConfidenceBadge({
   score,
   className,
   ...rest
 }: ConfidenceBadgeProps) {
   const level = levelOf(score);
+  const Icon = LEVEL_ICON[level];
+  const numText = score.toFixed(2).replace(/^0/, '');
+
   return (
     <span
       role="status"
       aria-label={`신뢰도 ${score.toFixed(2)} (${LEVEL_LABEL[level]})`}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-xs font-medium',
-        LEVEL_CLASSES[level],
+        'inline-flex size-11 flex-col items-center justify-center gap-[3px] rounded-md font-mono leading-none',
+        LEVEL_CHIP[level],
         className,
       )}
       {...rest}
     >
-      <span
+      <Icon
         aria-hidden
-        className={cn('size-1.5 rounded-full', {
-          'bg-confidence-high': level === 'high',
-          'bg-confidence-medium': level === 'medium',
-          'bg-confidence-low': level === 'low',
-        })}
+        className={cn('shrink-0', level === 'low' ? 'size-2.5' : 'size-[13px]')}
+        strokeWidth={2.5}
       />
-      {score.toFixed(2)}
+      <span className="text-[13px] font-bold tabular-nums tracking-tight">
+        {numText}
+      </span>
     </span>
   );
 }
