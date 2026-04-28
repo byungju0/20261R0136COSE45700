@@ -1,5 +1,7 @@
 import { isRouteErrorResponse, useRouteError } from 'react-router-dom';
-import { ProblemDetailError } from '../../api/client';
+import { AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ProblemDetailError } from '@/api/client';
 
 export function ErrorBoundary() {
   const error = useRouteError();
@@ -20,17 +22,25 @@ export function ErrorBoundary() {
   }
 
   return (
-    <div role="alert" style={{ padding: 24, maxWidth: 720 }}>
-      <h2 style={{ marginTop: 0 }}>{title}</h2>
-      <p>{detail}</p>
-      {errorCode && (
-        <p style={{ fontSize: 12, color: '#888' }}>
-          오류 코드: <code>{errorCode}</code>
-        </p>
-      )}
-      <button type="button" onClick={() => window.location.reload()}>
-        새로고침
-      </button>
+    <div role="alert" className="mx-auto max-w-xl px-8 py-12">
+      <div className="bg-card flex flex-col items-start gap-3 rounded-lg border p-8">
+        <AlertCircle className="text-destructive size-6" aria-hidden />
+        <h2 className="text-foreground text-lg font-semibold">{title}</h2>
+        <p className="text-muted-foreground text-sm">{detail}</p>
+        {errorCode && (
+          <p className="text-muted-foreground text-xs">
+            오류 코드: <code className="font-mono">{errorCode}</code>
+          </p>
+        )}
+        <Button
+          variant="default"
+          size="sm"
+          onClick={() => window.location.reload()}
+          className="mt-2"
+        >
+          새로고침
+        </Button>
+      </div>
     </div>
   );
 }

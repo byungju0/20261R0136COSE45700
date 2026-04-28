@@ -9,6 +9,19 @@
 # Story 4-4 created: 2026-04-27 (status: backlog → ready-for-dev, epic-4: backlog → in-progress) — 프론트 우선 진행 결정에 따라 Epic 1 잔여(1.3~1.5) 보류 후 Epic 4 착수
 # Story 4-4 dev started: 2026-04-27 (status: ready-for-dev → in-progress)
 # Story 4-4 dev completed: 2026-04-27 (status: in-progress → review)
+# Story 4-4-1 derived: 2026-04-27 (UX Design Spec Step 11 Implementation Roadmap)
+# Story 4-4-1 dev started: 2026-04-27 — UX Spec Phase 1+2+3+5 (인프라만, 마이그레이션 X)
+# Story 4-4-1 dev completed: 2026-04-27 — Tailwind v4 + shadcn(radix-nova) + 디자인 토큰
+#   + Pretendard/JetBrains Mono + shadcn 컴포넌트 5종(button/card/badge/skeleton/sonner)
+#   + C3 FreshnessIndicator + RootLayout 통합 (인라인 스타일은 4.4.2에서 마이그레이션)
+# Story 4-4-2 derived: 2026-04-27 (UX Design Spec Step 11 Implementation Roadmap)
+# Story 4-4-2 dev started: 2026-04-27 — Dashboard C-Light 재구성 + 인라인 스타일 → Tailwind 마이그레이션
+# Story 4-4-2 dev completed: 2026-04-27 — Custom 5종(C1 ConfidenceBadge / C2 TypeIcon /
+#   C4 DashboardCTA / C5 EmptyState / C8 ChartCard) + Dashboard C-Light(요약 strip + 차트
+#   2-card grid + 큰 검은 CTA + Empty State 분기) + 공통 컴포넌트 Tailwind 마이그레이션
+#   (RootLayout / LoadingSpinner / ErrorBoundary) + placeholder 3개 + Recharts 색상
+#   CSS 변수 주입(--chart-1~5, --primary, --border, --muted-foreground)
+# 정식 Story 파일 생략 — UX Design Specification이 spec 역할 수행
 # project: 20261R0136COSE45700
 # project_key: NOKEY
 # tracking_system: file-system
@@ -86,6 +99,8 @@ development_status:
   4-2-탐지-상세-조회-및-수동-크롤링-트리거-엔드포인트: backlog
   4-3-통계-엔드포인트-구현: backlog
   4-4-react-대시보드-메인-화면-및-라우팅-구조: review
+  4-4-1-tailwind-shadcn-디자인-시스템-도입: done  # UX Spec spec, lightweight
+  4-4-2-dashboard-c-light-재구성: done  # UX Spec spec, lightweight
   4-5-탐지-목록-상세-화면-및-파이프라인-반영-검증: backlog
   4-6-통계-화면-구현: backlog
   epic-4-retrospective: optional

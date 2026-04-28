@@ -3,9 +3,13 @@ import { useParams } from 'react-router-dom';
 export function DetectionDetailPage() {
   const { id } = useParams<{ id: string }>();
   return (
-    <div style={{ padding: 24 }}>
-      <h1 style={{ marginTop: 0 }}>탐지 상세 (ID: {id})</h1>
-      <p style={{ color: '#6b7280' }}>Story 4.5에서 구현됩니다.</p>
+    <div className="px-8 py-6">
+      <h1 className="mb-2 text-2xl font-semibold tracking-tight">
+        탐지 상세 (ID: <code className="font-mono text-xl">{id}</code>)
+      </h1>
+      <p className="text-muted-foreground text-sm">
+        Story 4.5에서 구현됩니다.
+      </p>
     </div>
   );
 }
