@@ -54,7 +54,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-27
-last_updated: 2026-04-28 # 2-4 in-progress
+last_updated: 2026-04-28 # 2-4 review
 project: 20261R0136COSE45700
 project_key: NOKEY
 
@@ -76,7 +76,7 @@ development_status:
   2-1-cloudflare-우회-가능성-검증: done
   2-2-proxyprovider-추상화-및-기본-크롤러-구현: done
   2-3-콘텐츠-전처리-파이프라인-구현: review
-  2-4-s3-원본-아카이브-및-이미지-수집: in-progress
+  2-4-s3-원본-아카이브-및-이미지-수집: review
   2-5-apscheduler-기반-자동-크롤링-및-수동-트리거: backlog
   2-6-ptt-dcard-크롤러-어댑터-구현: backlog
   2-7-tieba-52pojie-nga-크롤러-어댑터-구현: backlog
