@@ -1,5 +1,5 @@
 # generated: 2026-04-27
-# last_updated: 2026-04-27
+# last_updated: 2026-04-28
 # Story 1-1 created: 2026-04-27 (status: backlog → ready-for-dev, epic-1: backlog → in-progress)
 # Story 1-1 dev started: 2026-04-27 (status: ready-for-dev → in-progress)
 # Story 1-1 dev completed: 2026-04-27 (status: in-progress → review)
@@ -35,6 +35,12 @@
 #   오늘 요약 카드 + Empty State filter-empty 분기) + useStatsQuery period 인자 + MSW
 #   /stats?period= 대응 + mock data 7일·30일 trend 생성
 # 정식 Story 파일 생략 — UX Design Specification이 spec 역할 수행
+#
+# Story 4-4 / 4-5 / 4-6 디자인 시스템 v10 overhaul: 2026-04-28
+#   디자인 시스템 v10(NC AI 브랜드 + WCAG AA 2-tier 토큰 + 라이트/다크 + N1 severity
+#   배지 + 3-column 레이아웃 + Hero 통합) overhaul 7개 커밋, Blind Hunter + Edge Case
+#   Hunter + Security review 3-layer 리뷰 통과 (24 patch 적용 / 6 defer / 0 보안 이슈),
+#   PR #9 생성. 4-4 / 4-5 / 4-6 status: review → done
 #
 # Notes:
 # - 5분 이내 반영 검증(NFR4) 테스트는 Story 5.1 백엔드 합류 후로 deferred
@@ -115,11 +121,11 @@ development_status:
   4-1-spring-rest-api-기반-구조-및-탐지-목록-엔드포인트: backlog
   4-2-탐지-상세-조회-및-수동-크롤링-트리거-엔드포인트: backlog
   4-3-통계-엔드포인트-구현: backlog
-  4-4-react-대시보드-메인-화면-및-라우팅-구조: review
+  4-4-react-대시보드-메인-화면-및-라우팅-구조: done  # 디자인 시스템 v10 overhaul + Blind Hunter/Edge Case Hunter/Security 3-layer 리뷰 통과 + PR #9
   4-4-1-tailwind-shadcn-디자인-시스템-도입: done  # UX Spec spec, lightweight
   4-4-2-dashboard-c-light-재구성: done  # UX Spec spec, lightweight
-  4-5-탐지-목록-상세-화면-및-파이프라인-반영-검증: review  # UX Spec spec, lightweight; 5분 검증은 Story 5.1 후
-  4-6-통계-화면-구현: review  # UX Spec spec, lightweight
+  4-5-탐지-목록-상세-화면-및-파이프라인-반영-검증: done  # UX Spec spec, lightweight; 5분 검증은 Story 5.1 후
+  4-6-통계-화면-구현: done  # UX Spec spec, lightweight
   epic-4-retrospective: optional
 
   # Epic 5: 시스템 운영, 모니터링 및 품질 관리
