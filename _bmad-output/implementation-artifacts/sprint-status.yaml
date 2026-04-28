@@ -79,8 +79,6 @@ development_status:
   2-3-콘텐츠-전처리-파이프라인-구현: done
   2-4-s3-원본-아카이브-및-이미지-수집: review
   2-5-apscheduler-기반-자동-크롤링-및-수동-트리거: review
-  2-6-ptt-dcard-크롤러-어댑터-구현: backlog
-  2-7-tieba-52pojie-nga-크롤러-어댑터-구현: backlog
   epic-2-retrospective: optional
 
   # Epic 3: AI 기반 불법 게시글 탐지 파이프라인
