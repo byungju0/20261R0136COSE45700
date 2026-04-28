@@ -651,21 +651,26 @@ API 응답 시간·에러율·Redis 큐 깊이가 Grafana에서 실시간으로 
 ### Story 5.3: AWS 프로덕션 인프라 프로비저닝
 
 인프라 담당자로서,  
-AWS EC2·RDS·S3·보안 그룹이 프로덕션 환경에 맞게 구성되기를 원한다,  
-그래서 시스템이 안전하게 운영 가능한 상태로 배포될 수 있다.
+AWS EC2·RDS·S3·보안 그룹이 Terraform 코드로 프로덕션 환경에 맞게 구성되기를 원한다,  
+그래서 시스템이 안전하게 운영 가능한 상태로 배포되며 인프라 변경이 PR 리뷰를 거친다.
 
 **Acceptance Criteria:**
 
 **Given** AWS 계정과 IAM 권한이 준비된 상태에서  
 **When** 인프라 프로비저닝이 완료되면  
-**Then** Crawler EC2(t3.medium), Detection EC2(t3.medium), API EC2(t3.medium) 3개 인스턴스가 각각 분리된 보안 그룹으로 구성된다  
+**Then** 모든 AWS 리소스가 `infra/terraform/` 코드로 정의되며 Console 수동 생성(ClickOps)이 금지된다 (architecture.md "IaC 도구: Terraform" 결정 준수)  
+**And** Crawler EC2(t3.medium), Detection EC2(t3.medium), API EC2(t3.medium) 3개 인스턴스가 각각 분리된 보안 그룹으로 구성된다  
 **And** RDS PostgreSQL 보안 그룹이 Detection EC2와 API EC2에서만 접근을 허용하고 퍼블릭 접근을 차단한다 (NFR7)  
 **And** Redis(docker-compose on API EC2) 포트가 외부 접근을 차단하고 API EC2 내부에서만 접근된다  
 **And** S3 버킷 정책이 퍼블릭 접근을 차단하고 Crawler EC2 IAM Role에만 쓰기 권한을 부여한다 (NFR8)  
 **And** 각 EC2에 IAM Instance Role이 부여되어 AWS SDK가 환경변수 Access Key 없이 동작한다 (NFR6)  
 **And** S3 버킷 및 RDS에 AWS CloudTrail 또는 S3 Access Logging이 활성화되어 데이터 접근 이력이 기록된다 (NFR9)  
+**And** `infra/terraform/bootstrap/`을 1회 apply하여 state 백엔드(S3 + DynamoDB lock)가 생성되며, `infra/terraform/environments/{dev,prod}/`가 해당 백엔드를 사용한다  
+**And** `infra/terraform/environments/dev/`와 `environments/prod/`가 동일 모듈을 다른 변수로 호출하며, 환경별 state는 분리된다  
+**And** 시크릿(VARCO_API_KEY 등)은 AWS Secrets Manager 또는 SSM Parameter Store에 저장되며 `tfvars`/`tfstate`에 평문으로 포함되지 않는다 (NFR5)  
+**And** PR에서 `terraform plan` 결과가 자동으로 PR 코멘트에 게시되며, dev 환경 `apply`는 main 머지 시 자동, prod 환경 `apply`는 GitHub Environments 보호 규칙으로 수동 승인을 요구한다  
 **And** `infra/DATA_POLICY.md`에 수집 데이터의 탐지 목적 전용 사용 방침과 외부 공개 금지 정책이 문서화된다 (NFR9)  
-**And** 인프라 구성 내용이 `infra/README.md`에 문서화된다
+**And** Terraform 모듈·환경 사용법, bootstrap 절차, drift 점검 가이드가 `infra/terraform/README.md`에 문서화된다
 
 ### Story 5.4: 최종 탐지 정확도 검증 및 E2E 데모 테스트
 
