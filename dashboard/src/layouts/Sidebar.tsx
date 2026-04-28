@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ListChecks, BarChart3, Settings } from 'lucide-react';
+import { LayoutDashboard, ListChecks, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
 export function Sidebar() {
   return (
     <aside
+      aria-label="주 탐색"
       className="border-border-1 sticky top-0 h-screen self-start border-r"
       style={{
         background: 'var(--bg-sunk)',
@@ -38,25 +39,17 @@ export function Sidebar() {
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 rounded-[5px] px-3 py-2.5 text-sm font-medium no-underline transition-colors',
+                // 색상은 className만으로 처리 — inline style이 hover를 가로채지 않게.
                 isActive
-                  ? 'text-fg'
-                  : 'text-fg-2 hover:text-fg',
+                  ? 'bg-bg-elev text-fg'
+                  : 'text-fg-2 hover:bg-bg-overlay hover:text-fg',
               )
-            }
-            style={({ isActive }) =>
-              isActive
-                ? { background: 'var(--bg-elev)', color: 'var(--fg)' }
-                : { color: 'var(--fg-2)' }
             }
           >
             <Icon className="size-4 shrink-0 opacity-85" />
             {label}
           </NavLink>
         ))}
-        <div className="mt-1 flex cursor-pointer items-center gap-3 rounded-[5px] px-3 py-2.5 text-sm font-medium opacity-60" style={{ color: 'var(--fg-2)' }}>
-          <Settings className="size-4 shrink-0 opacity-85" />
-          설정
-        </div>
       </nav>
     </aside>
   );

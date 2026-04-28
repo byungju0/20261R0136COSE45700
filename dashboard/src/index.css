@@ -294,7 +294,9 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    transition: background 0.2s, color 0.2s;
+    /* transition은 사용자 토글 시점에만 — 초기 paint 깜빡임 방지 위해
+       data-theme 전환 자체는 즉시, 주변 색만 부드럽게 */
+    transition: background 0.2s ease, color 0.2s ease;
     font-feature-settings: 'ss06' on, 'ss07' on;
     word-break: keep-all;
   }

@@ -69,11 +69,13 @@ export function DetectionRow({
       className={cn(
         'cursor-pointer',
         // row-level severity: 좌측 6px 색 bar (box-shadow inset) + 약한 tint
-        'data-[severity=high]:shadow-[inset_6px_0_0_var(--confidence-high-bg)] data-[severity=high]:bg-[oklch(0.52_0.21_25/0.06)]',
-        'data-[severity=medium]:shadow-[inset_6px_0_0_var(--confidence-medium-bg)] data-[severity=medium]:bg-[oklch(0.55_0.16_55/0.05)]',
+        // tint는 color-mix로 테마(라이트/다크) 따라 자동 swap.
+        'data-[severity=high]:shadow-[inset_6px_0_0_var(--confidence-high-bg)] data-[severity=high]:bg-[color-mix(in_oklch,var(--confidence-high-bg)_8%,transparent)]',
+        'data-[severity=medium]:shadow-[inset_6px_0_0_var(--confidence-medium-bg)] data-[severity=medium]:bg-[color-mix(in_oklch,var(--confidence-medium-bg)_6%,transparent)]',
         // focused 상태는 severity보다 우선 (override)
         'data-[focused]:bg-accent data-[focused]:ring-ring/40 data-[focused]:ring-2',
-        'data-[visited]:opacity-70',
+        // visited는 셀 내부에만 적용 — 행 자체에 opacity를 주면 ring/severity bar 대비 저하
+        '[&[data-visited]_td]:opacity-70',
       )}
     >
       <TableCell className="w-[88px]">

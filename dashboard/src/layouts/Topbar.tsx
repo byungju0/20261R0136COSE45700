@@ -4,16 +4,35 @@ import { ManualCrawlButton } from '@/components/tracker/ManualCrawlButton';
 
 type Theme = 'light' | 'dark';
 
-export function Topbar() {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'light';
+function readInitialTheme(): Theme {
+  if (typeof window === 'undefined') return 'light';
+  // index.html의 인라인 스크립트가 이미 data-theme을 설정 — 그 값을 신뢰원으로.
+  const fromDom = document.documentElement.getAttribute('data-theme');
+  if (fromDom === 'dark' || fromDom === 'light') return fromDom;
+  try {
     const saved = localStorage.getItem('theme');
-    return (saved === 'dark' ? 'dark' : 'light') as Theme;
-  });
+    if (saved === 'dark' || saved === 'light') return saved;
+  } catch {
+    /* Private Mode 등에서 localStorage 접근 차단 → fallthrough */
+  }
+  try {
+    if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark';
+  } catch {
+    /* matchMedia 미지원 환경 fallthrough */
+  }
+  return 'light';
+}
+
+export function Topbar() {
+  const [theme, setTheme] = useState<Theme>(readInitialTheme);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
+    try {
+      localStorage.setItem('theme', theme);
+    } catch {
+      /* localStorage 쓰기 실패는 무시 (인메모리만 유지) */
+    }
   }, [theme]);
 
   return (

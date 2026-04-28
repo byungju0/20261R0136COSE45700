@@ -38,7 +38,7 @@ export function PieChart({
           cy="50%"
           innerRadius={donut ? 50 : 0}
           outerRadius={90}
-          paddingAngle={1}
+          paddingAngle={data.length > 1 ? 1 : 0}
           stroke="var(--background)"
           strokeWidth={2}
         >

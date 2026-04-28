@@ -9,10 +9,20 @@ interface ConfidenceBadgeProps extends HTMLAttributes<HTMLSpanElement> {
 
 type Level = 'high' | 'medium' | 'low';
 
+/** [0,1] 범위 밖이거나 NaN이면 'low'로 안전 매핑. 표시용 숫자도 clamp. */
 function levelOf(score: number): Level {
-  if (score >= 0.8) return 'high';
-  if (score >= 0.5) return 'medium';
+  if (!Number.isFinite(score)) return 'low';
+  const s = Math.max(0, Math.min(1, score));
+  if (s >= 0.8) return 'high';
+  if (s >= 0.5) return 'medium';
   return 'low';
+}
+
+function formatScore(score: number): string {
+  if (!Number.isFinite(score)) return '—';
+  const s = Math.max(0, Math.min(0.99, score));
+  // .95 형태(소수점 앞 0 제거) — 44px 칩 너비에 맞춤. 1.00은 0.99로 캡.
+  return s.toFixed(2).replace(/^0/, '');
 }
 
 const LEVEL_LABEL: Record<Level, string> = {
@@ -47,12 +57,15 @@ export function ConfidenceBadge({
 }: ConfidenceBadgeProps) {
   const level = levelOf(score);
   const Icon = LEVEL_ICON[level];
-  const numText = score.toFixed(2).replace(/^0/, '');
+  const numText = formatScore(score);
+  const ariaScore = Number.isFinite(score)
+    ? Math.max(0, Math.min(1, score)).toFixed(2)
+    : '알 수 없음';
 
   return (
     <span
       role="status"
-      aria-label={`신뢰도 ${score.toFixed(2)} (${LEVEL_LABEL[level]})`}
+      aria-label={`신뢰도 ${ariaScore} (${LEVEL_LABEL[level]})`}
       className={cn(
         'inline-flex size-11 flex-col items-center justify-center gap-[3px] rounded-md font-mono leading-none',
         LEVEL_CHIP[level],

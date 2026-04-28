@@ -39,7 +39,7 @@ export function DashboardPage() {
 
   return (
     <div
-      className="flex max-w-[1300px] flex-col"
+      className="mx-auto flex max-w-[1300px] flex-col"
       style={{ padding: 'var(--pad-page)' }}
     >
       <div style={{ marginBottom: 'var(--pad-page-head)' }}>
@@ -207,19 +207,27 @@ function Hero({ count, delta, reviewed }: HeroProps) {
               color: 'var(--fg)',
             }}
           >
-            {count}
+            {count.toLocaleString('ko-KR')}
           </span>
-          {delta !== 0 && (
-            <span
-              className="inline-flex items-baseline gap-2 text-sm font-medium"
-              style={{ color: delta > 0 ? 'var(--crit)' : 'var(--fg-2)' }}
-            >
-              {deltaSign}{Math.abs(delta)}
-              <span className="text-xs font-normal" style={{ color: 'var(--fg-2)' }}>
-                전일 대비
-              </span>
-            </span>
-          )}
+          <span
+            className="inline-flex items-baseline gap-2 text-sm font-medium"
+            style={{
+              color:
+                delta > 0 ? 'var(--crit)' : delta < 0 ? 'var(--safe)' : 'var(--fg-2)',
+            }}
+          >
+            {delta === 0 ? (
+              <>전일과 동일</>
+            ) : (
+              <>
+                {deltaSign}
+                {Math.abs(delta)}
+                <span className="text-xs font-normal" style={{ color: 'var(--fg-2)' }}>
+                  전일 대비
+                </span>
+              </>
+            )}
+          </span>
           {/* Alert correlation 힌트 — automation bias 완화 (Pattern E) */}
           <span
             className="font-mono mt-1.5 inline-flex items-baseline gap-2 self-start rounded-full border px-2.5 py-1 text-xs"
@@ -285,7 +293,8 @@ function Hero({ count, delta, reviewed }: HeroProps) {
         {/* 우: CTA */}
         <Link
           to="/detections"
-          className="group inline-flex items-center gap-2.5 whitespace-nowrap rounded-md text-sm font-semibold no-underline transition-opacity hover:opacity-90"
+          aria-label={`탐지 목록 보러 가기 — ${count.toLocaleString('ko-KR')}건`}
+          className="group focus-visible:ring-ring/60 inline-flex items-center gap-2.5 whitespace-nowrap rounded-md text-sm font-semibold no-underline transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2"
           style={{
             padding: '14px 22px',
             background: 'var(--accent)',

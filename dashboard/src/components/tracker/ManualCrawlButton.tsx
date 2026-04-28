@@ -58,6 +58,7 @@ export function ManualCrawlButton() {
           <RefreshCw className="size-3.5" aria-hidden />
           <span>수동 크롤링</span>
           <kbd
+            aria-hidden
             className="font-mono ml-0.5 rounded-[3px] px-1.5 py-px text-[10px] font-normal"
             style={{ background: 'var(--bg-sunk)', color: 'var(--fg-3)' }}
           >

@@ -47,11 +47,24 @@ export function BarChart({
           type="category"
           stroke="var(--muted-foreground)"
           fontSize={12}
-          width={120}
+          width={140}
           tickLine={false}
           axisLine={false}
+          tickFormatter={(name: string) =>
+            name.length > 18 ? name.slice(0, 17) + '…' : name
+          }
         />
-        <Tooltip cursor={{ fill: 'var(--muted)' }} />
+        <Tooltip
+          cursor={{ fill: 'var(--muted)' }}
+          contentStyle={{
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
+            borderRadius: 6,
+            color: 'var(--foreground)',
+            fontSize: 12,
+          }}
+          labelStyle={{ color: 'var(--foreground)' }}
+        />
         <Bar
           dataKey="value"
           fill={color}

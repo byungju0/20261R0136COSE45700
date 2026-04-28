@@ -10,13 +10,35 @@ import type { Detection } from '@/types/api';
 
 const RECENT_LIMIT = 5;
 
+type Severity = 'high' | 'medium' | 'low';
+
+function severityOf(score: number): Severity {
+  if (!Number.isFinite(score)) return 'low';
+  const s = Math.max(0, Math.min(1, score));
+  if (s >= 0.8) return 'high';
+  if (s >= 0.5) return 'medium';
+  return 'low';
+}
+
+function formatScore(score: number): string {
+  if (!Number.isFinite(score)) return '—';
+  const s = Math.max(0, Math.min(0.99, score));
+  return s.toFixed(2).replace(/^0/, '');
+}
+
+function formatRelativeTime(iso: string): string {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return '—';
+  return formatDistanceToNow(new Date(t), { addSuffix: true, locale: ko });
+}
+
 /**
  * Recent · High confidence — Dashboard Hero 아래 노출되는 최신 탐지 5건.
  * mockup의 alert-row + sev-v14 (N1) 패턴.
  */
 export function RecentAlertList() {
   const navigate = useNavigate();
-  const { data, isLoading } = useDetectionsQuery({ size: RECENT_LIMIT });
+  const { data, isLoading, isError } = useDetectionsQuery({ size: RECENT_LIMIT });
 
   const items = data?.content?.slice(0, RECENT_LIMIT) ?? [];
   const total = data?.totalElements ?? 0;
@@ -40,6 +62,7 @@ export function RecentAlertList() {
       </div>
 
       <div
+        role="list"
         className="overflow-hidden rounded-md border"
         style={{
           background: 'var(--bg-elev)',
@@ -52,6 +75,14 @@ export function RecentAlertList() {
             style={{ color: 'var(--fg-3)' }}
           >
             불러오는 중…
+          </div>
+        ) : isError ? (
+          <div
+            role="alert"
+            className="px-6 py-8 text-center text-sm"
+            style={{ color: 'var(--crit)' }}
+          >
+            탐지 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
           </div>
         ) : items.length === 0 ? (
           <div
@@ -75,23 +106,22 @@ export function RecentAlertList() {
 }
 
 function AlertRow({ detection, onClick }: { detection: Detection; onClick: () => void }) {
-  const severity =
-    detection.confidence >= 0.8 ? 'high' : detection.confidence >= 0.5 ? 'medium' : 'low';
-  const time = formatDistanceToNow(new Date(detection.detectedAt), {
-    addSuffix: true,
-    locale: ko,
-  });
+  const severity = severityOf(detection.confidence);
+  const time = formatRelativeTime(detection.detectedAt);
+  const snippet = detection.translatedText ?? detection.rawText;
 
   return (
     <button
       type="button"
+      role="listitem"
       onClick={onClick}
       data-severity={severity}
+      title={snippet}
       className={cn(
-        'group grid w-full cursor-pointer items-center border-t bg-transparent text-left transition-colors first:border-t-0 hover:bg-[--hover]',
-        // 좌측 6px 색 막대 (box-shadow inset) + 약한 tint — Carbon borderStart 패턴
-        'data-[severity=high]:shadow-[inset_6px_0_0_var(--crit-bg)] data-[severity=high]:bg-[oklch(0.52_0.21_25/0.06)]',
-        'data-[severity=medium]:shadow-[inset_6px_0_0_var(--warn-bg)] data-[severity=medium]:bg-[oklch(0.55_0.16_55/0.05)]',
+        'group grid w-full cursor-pointer items-center border-t bg-transparent text-left transition-colors first:border-t-0 hover:bg-[var(--hover)]',
+        // 좌측 6px 색 막대 (box-shadow inset) + tint — color-mix로 테마 자동 swap
+        'data-[severity=high]:shadow-[inset_6px_0_0_var(--crit-bg)] data-[severity=high]:bg-[color-mix(in_oklch,var(--crit-bg)_8%,transparent)]',
+        'data-[severity=medium]:shadow-[inset_6px_0_0_var(--warn-bg)] data-[severity=medium]:bg-[color-mix(in_oklch,var(--warn-bg)_6%,transparent)]',
       )}
       style={{
         gridTemplateColumns: '52px 28px minmax(120px, 180px) minmax(0, 1fr) 90px',
@@ -100,7 +130,7 @@ function AlertRow({ detection, onClick }: { detection: Detection; onClick: () =>
         borderColor: 'var(--border-1)',
       }}
     >
-      <SeverityBadge confidence={detection.confidence} />
+      <SeverityBadge confidence={detection.confidence} severity={severity} />
       <TypeIcon type={detection.type} showLabel={false} />
       <div className="flex min-w-0 flex-col gap-0.5">
         <span
@@ -123,7 +153,7 @@ function AlertRow({ detection, onClick }: { detection: Detection; onClick: () =>
           color: 'var(--fg-2)',
         }}
       >
-        {detection.translatedText ?? detection.rawText}
+        {snippet}
       </span>
       <span
         className="font-mono text-right text-xs tabular-nums"
@@ -135,26 +165,31 @@ function AlertRow({ detection, onClick }: { detection: Detection; onClick: () =>
   );
 }
 
-function SeverityBadge({ confidence }: { confidence: number }) {
-  const level: 'high' | 'medium' | 'low' =
-    confidence >= 0.8 ? 'high' : confidence >= 0.5 ? 'medium' : 'low';
-  const Icon = level === 'high' ? AlertTriangle : level === 'medium' ? AlertCircle : Circle;
-  const numText = confidence.toFixed(2).replace(/^0/, '');
+function SeverityBadge({
+  confidence,
+  severity,
+}: {
+  confidence: number;
+  severity: Severity;
+}) {
+  const Icon = severity === 'high' ? AlertTriangle : severity === 'medium' ? AlertCircle : Circle;
+  const numText = formatScore(confidence);
 
   const chipClass =
-    level === 'high'
+    severity === 'high'
       ? 'bg-confidence-high-bg text-white'
-      : level === 'medium'
+      : severity === 'medium'
         ? 'bg-confidence-medium-bg text-white'
         : 'border';
 
   const lowStyle: React.CSSProperties =
-    level === 'low'
+    severity === 'low'
       ? { borderColor: 'var(--border-1)', color: 'var(--fg-3)' }
       : {};
 
   return (
     <span
+      aria-hidden
       className={cn(
         'inline-flex size-11 flex-col items-center justify-center gap-[3px] rounded-md font-mono leading-none',
         chipClass,
@@ -162,8 +197,7 @@ function SeverityBadge({ confidence }: { confidence: number }) {
       style={lowStyle}
     >
       <Icon
-        aria-hidden
-        className={level === 'low' ? 'size-2.5' : 'size-[13px]'}
+        className={severity === 'low' ? 'size-2.5' : 'size-[13px]'}
         strokeWidth={2.5}
       />
       <span className="text-[13px] font-bold tabular-nums tracking-tight">
