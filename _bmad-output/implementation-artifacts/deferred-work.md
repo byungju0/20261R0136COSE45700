@@ -20,8 +20,17 @@
 - **FreshnessIndicator/NewDetectionsBadge 제거 회귀** [layouts/Topbar.tsx, layouts/RootLayout.tsx] — 새 Topbar에 freshness 표시 + 수동 트리거 후 새 탐지 알림 없음. Hero 시스템 상태 줄에 dataUpdatedAt 연결 또는 컴포넌트 복원 결정 필요.
 - **3-column 레이아웃 모바일 breakpoint 부재** [layouts/RootLayout.tsx:20] — sidebar 240px + rail 240px 고정으로 ~600px 미만에서 main 압착. desktop-only 전제 명시 또는 < lg 에서 rail 드로어화 필요.
 
+## Deferred from: code review of 1-1-모노레포-구조-초기화-및-서브시스템-스캐폴딩 (2026-04-29)
+
+- **`build/` 패턴 무앵커** [`.gitignore`:27] — `api/build/`가 의도이나 미래 서브시스템의 `build/` 디렉토리도 자동 무시 가능. Story 1.5 CI 추가 시 앵커 필요 여부 재검토.
+- **`dist/` 패턴 무앵커** [`.gitignore`:23] — `dashboard/dist/`가 의도이나 다른 서브시스템에서 `dist/` 규칙 채택 시 충돌 가능. 배포 아티팩트 전략 확정 시 `/dashboard/dist/`로 앵커링.
+
 ## Deferred from: code review of 1-3-로컬-개발-환경-구성 (2026-04-29)
 
 - **redis/postgres `healthcheck:` 블록 미정의** [infra/docker-compose.yml] — `up -d` 직후 컨테이너가 Listening 되기 전 의존 서비스 부팅 시 race. Story 1.4 Flyway 마이그레이션이 `service_healthy` condition을 요구하므로 그때 일괄 추가.
 - **VARCO_API_KEY required-var 가드 부재** [infra/.env.example, infra/docker-compose.yml] — placeholder `your-varco-api-key-here`가 그대로 사용되면 런타임 401로 fail. crawler/detection 컨테이너 추가 시 해당 서비스 environment에 `${VARCO_API_KEY:?}` 부착.
 - **postgres `/docker-entrypoint-initdb.d` 마운트 슬롯 미예약** [infra/docker-compose.yml] — Story 1.4에서 `pg_trgm`/`uuid-ossp` 등 extension 필요 시 Flyway baseline에 포함하거나 initdb 마운트 추가 결정 필요.
+
+## Deferred from: code review of 1-5-github-actions-기본-ci-파이프라인-구성 (2026-04-29)
+
+- **Branch Protection strict merge gate / AC #5** [docs/ci-setup.md:17] — Story 1.5의 4개 workflow는 `paths:` 필터가 있어 required check로 직접 등록하면 무관 경로 PR에서 skipped check가 pending으로 남을 수 있다. Strict PR merge blocking은 Story 5.2에서 항상 실행되는 `ci-aggregator.yml` 또는 동등한 required check 설계로 처리한다.

@@ -1,6 +1,6 @@
 # Story 1.5: GitHub Actions 기본 CI 파이프라인 구성
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -16,7 +16,7 @@ Status: review
 2. **Given** `.github/workflows/detection.yml`이 존재할 때, **When** `detection/**` 경로 변경이 트리거되면, **Then** Python 3.11 환경에서 `flake8 detection/src detection/tests` lint와 `pytest detection/tests/unit` 단위 테스트가 실행된다. (Epic AC2)
 3. **Given** `.github/workflows/api.yml`이 존재할 때, **When** `api/**` 경로 변경이 트리거되면, **Then** Java 21 (Temurin) 환경에서 `./gradlew test`가 실행되며 Spring Boot 단위 테스트가 통과한다. (Epic AC3)
 4. **Given** `.github/workflows/dashboard.yml`이 존재할 때, **When** `dashboard/**` 경로 변경이 트리거되면, **Then** Node.js 20.19+ 환경에서 `npm ci` → `npm run lint` → `npm run build`가 통과한다. (Epic AC4 — `npm test`는 dashboard에 vitest 미도입 상태이므로 Story 5.2/Growth로 deferred하고 lint+build로 대체. Dev Notes 참조)
-5. **Given** 어떤 워크플로우든 실패할 때, **When** PR 상태 확인이 발생하면, **Then** 해당 PR의 머지가 GitHub Branch Protection에 의해 블로킹된다. (Epic AC5 — Branch Protection rule 설정은 본 스토리 범위, 단 admin 권한 필요 시 README에 안내)
+5. **Given** 어떤 워크플로우든 실패할 때, **When** PR 상태 확인이 발생하면, **Then** 해당 PR의 머지가 GitHub Branch Protection에 의해 블로킹된다. (Epic AC5 — Story 5.2 strict CI/CD aggregator로 deferred. 본 스토리는 path-filtered workflow와 Branch Protection 운영 가이드까지 수행)
 6. **Given** 워크플로우가 외부 시크릿을 참조할 때, **When** 워크플로우 정의 파일을 읽으면, **Then** `VARCO_API_KEY` 등 민감 값이 `secrets.VARCO_API_KEY` 형식으로만 참조되고 평문으로 하드코딩되지 않는다. (Epic AC6, NFR5)
 7. **Given** 모노레포 4개 서브시스템이 독립 워크플로우를 가질 때, **When** 한 서브시스템만 변경된 PR을 푸시하면, **Then** `paths:` 필터에 의해 해당 워크플로우만 실행되고 나머지는 스킵된다. (효율 + ARCH-7 "독립 워크플로우" 정신)
 
@@ -45,8 +45,8 @@ Status: review
   - [x] 4.2 Steps: checkout v6 → setup-node v6 (20.19, cache npm) → working-directory dashboard → `npm ci` → `npm run lint` → `npm run build`
   - [x] 4.3 `npm run build`는 `tsc -b && vite build` 조합이라 typecheck + 번들이 한 번에 — 별도 `tsc --noEmit` 단계 불필요. `npm test`는 vitest 미도입으로 Story 5.2/Growth로 deferred
 
-- [x] **Task 5: PR 머지 블로킹 (Branch Protection)** (AC: #5)
-  - [x] 5.1 `docs/ci-setup.md` 작성 — Branch Protection 절차, paths 필터와 required check 상호작용 (Loose vs Strict 옵션) 명시
+- [x] **Task 5: Branch Protection 운영 가이드** (AC: #5 deferred to Story 5.2)
+  - [x] 5.1 `docs/ci-setup.md` 작성 — Story 1.5 MVP는 loose 운영, Story 5.2 strict aggregator에서 required gate 구성하도록 명시
   - [x] 5.2 4 워크플로우 job name 모두 `lint-test`로 통일
   - [x] 5.3 admin 권한 미보유 시 슬랙 요청 — `docs/ci-setup.md`에 절차 안내
 
@@ -63,10 +63,14 @@ Status: review
   - [x] 7.5 GitHub UI 빨강 검증은 push 후 별도 확인 (개발자 체크리스트)
 
 - [x] **Task 8: 마무리**
-  - [x] 8.1 6개 AC 수동 검증 — Completion Notes 작성
+  - [x] 8.1 AC #1-4, #6-7 수동 검증 — Completion Notes 작성
   - [x] 8.2 File List 기록
   - [x] 8.3 PR 본문에 워크플로우 4종 + BP 안내 포함 (PR 생성 시점)
   - [x] 8.4 sprint-status.yaml 1-5 → review 전환
+
+### Review Findings
+
+- [x] [Review][Defer] Branch Protection 전략이 AC #5와 충돌함 [docs/ci-setup.md:17] — deferred to Story 5.2. Reason: strict Branch Protection gate는 항상 실행되는 `ci-aggregator.yml` 또는 동등한 required check 설계가 필요하므로 Epic 5 CI/CD 통합에서 처리한다. Story 1.5는 path-filtered workflow 4종과 loose 운영 가이드까지 완료한다.
 
 ## Dev Notes
 
@@ -189,7 +193,7 @@ Status: review
 
 ### Anti-Patterns to Avoid (이번 스토리 특화)
 
-1. ❌ **워크플로우만 작성하고 Branch Protection 미설정** — 4 워크플로우가 빨강 떠도 머지 가능 → AC #5 위반. Task 5 반드시 완수 (admin 권한 없으면 README 안내라도).
+1. ❌ **path-filtered 워크플로우 4개를 그대로 required check로 등록** — 무관 경로 PR에서 skipped check가 pending으로 남아 머지가 막힐 수 있음. Story 1.5는 loose 운영, Story 5.2에서 aggregator required check로 strict gate 구성.
 2. ❌ **paths 필터 누락** — 한 PR에 4 워크플로우 모두 실행. 시간 낭비 + 무관 영역 fail로 PR 블로킹. Task 1.1, 2.1, 3.1, 4.1 paths 필수.
 3. ❌ **`actions/checkout@main` 또는 `@latest` 참조** — 비고정 ref. 항상 메이저 버전 핀 (`@v6`).
 4. ❌ **`pip install -r requirements.txt`만 하고 `pip install --upgrade pip setuptools` 생략** — Story 1.2 선례 (`-e ../shared` 처리 중 setuptools<68 에러).
@@ -198,7 +202,7 @@ Status: review
 7. ❌ **VARCO_API_KEY를 워크플로우에 평문으로 작성** — NFR5 위반. 본 스토리는 단위 테스트만이므로 시크릿 참조 자체가 불필요. Task 6.1 grep 검증.
 8. ❌ **워크플로우 파일명에 한글 / 공백 / 대소문자 혼용** — `crawler.yml` 등 lowercase ASCII만.
 9. ❌ **모든 step에 `if: success()` 명시** — 기본값. 군더더기.
-10. ❌ **`continue-on-error: true`로 실패 무시** — AC #5 (PR 블로킹) 직접 위반.
+10. ❌ **`continue-on-error: true`로 실패 무시** — Story 5.2 strict gate 도입 시 PR 블로킹을 우회하게 되므로 금지.
 
 ### References
 
@@ -216,7 +220,7 @@ Status: review
 
 ### Status
 
-review
+done
 
 ### Completion Notes
 
@@ -225,13 +229,13 @@ review
 - api: Foojay 플러그인이 `settings.gradle`에 이미 등록되어 있어 Java 21 toolchain 자동 다운로드. `chmod +x gradlew` step으로 Linux runner의 권한 이슈 방지. 로컬 검증 시 BUILD SUCCESSFUL (Spring Boot context load 통과).
 - dashboard: `npm run build`가 `tsc -b && vite build` 조합이라 typecheck + 번들 한 단계 통합. 로컬 검증 49ms / 193KB. AC #4를 `npm test` 대신 `lint + build`로 명시 완화 — vitest 도입은 Growth 단계 deferred.
 - 시크릿: 4 yml 파일 모두 평문 키/토큰 0 hit (`grep -rEn "VARCO_API_KEY|AWS_ACCESS_KEY|password|token"` exit 1). 단위 테스트만이라 `secrets.*` 참조 자체가 본 스토리 범위에 불필요. 향후 통합 테스트 시 패턴은 `docs/ci-setup.md`에 문서화.
-- Branch Protection: admin 권한 필요 작업이라 본 스토리에서는 `docs/ci-setup.md`로 절차만 정립. paths 필터 + required check 상호작용 trade-off (Loose 권장 / Strict는 Story 5.2 후속) 명시.
+- Branch Protection: path-filtered workflow를 required로 직접 등록하면 skipped check가 pending으로 남을 수 있어, strict PR merge gate(AC #5)는 Story 5.2 `ci-aggregator.yml` 또는 동등한 required check 설계로 deferred. 본 스토리에서는 loose 운영 가이드와 시크릿 패턴 문서화까지 완료.
 
 **미해결/다음 스토리**:
 - crawler/detection은 로컬 Python venv 부재로 lint+pytest 로컬 검증 스킵. 첫 push 후 GitHub Actions 실제 실행 결과 확인 필요.
 - 의도적 lint 위반 → 빨강 → revert 검증은 push 후 개발자 직접 확인 (workflow 정의 자체에 issue 없음).
 - vitest 도입 (`dashboard/`)은 Story 5.2 또는 별도 small story로.
-- `ci-aggregator.yml` (Loose → Strict 전환용)은 Story 5.2 (CI/CD 완전 통합)로.
+- `ci-aggregator.yml` (Loose → Strict 전환용) 및 AC #5 strict merge blocking은 Story 5.2 (CI/CD 완전 통합)로.
 
 ### File List
 

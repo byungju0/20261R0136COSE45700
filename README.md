@@ -21,12 +21,14 @@
 
 ## 사전 요구사항
 
-- **Python 3.11+** (개발 환경 검증: 3.14)
+- **Python 3.11+** (검증: 3.11, 3.12, 3.13; 3.14는 개발자 로컬 환경 전용)
 - **Java 21 LTS** (Gradle Foojay Toolchain Resolver가 자동 다운로드 가능)
-- **Node.js 20.19+** (개발 환경 검증: 25)
+- **Node.js 20.19+** (LTS 권장: 20, 22)
 - **npm** (Node.js와 함께 설치됨)
 
 > Java 21이 로컬에 없어도 `./gradlew build` 첫 실행 시 Foojay 리졸버가 자동으로 다운로드합니다.
+>
+> **Windows 사용자:** `bin/` 경로 대신 `Scripts\` 경로를 사용하고, `./gradlew` 대신 `gradlew.bat`을 사용하세요. 아래 명령은 macOS/Linux 기준입니다.
 
 ## 로컬 셋업
 
@@ -40,13 +42,14 @@ cd 20261R0136COSE45700
 python3 -m venv crawler/.venv
 crawler/.venv/bin/pip install -r crawler/requirements.txt
 crawler/.venv/bin/playwright install chromium
+# Linux headless 환경 추가: crawler/.venv/bin/playwright install-deps chromium
 
 # 2) detection 셋업 (Python venv + 의존성)
 python3 -m venv detection/.venv
 detection/.venv/bin/pip install -r detection/requirements.txt
 
 # 3) api 셋업 (Spring Boot — Gradle이 의존성 자동 다운로드)
-cd api && ./gradlew build && cd ..
+cd api && ./gradlew build; cd ..
 
 # 4) dashboard 셋업 (Vite + React)
 cd dashboard && npm install && cd ..
@@ -60,18 +63,18 @@ cd dashboard && npm install && cd ..
 
 ```bash
 # crawler
-crawler/.venv/bin/python -c "import playwright; print(playwright.__version__)"
-# 출력: 1.58.0
+crawler/.venv/bin/pip show playwright | grep Version
+# 출력: Version: 1.58.0
 
 # detection
 detection/.venv/bin/python -c "import httpx, redis, boto3, dotenv; print('detection OK')"
 
 # api
-cd api && ./gradlew build && cd ..
+cd api && ./gradlew build; cd ..
 # 출력: BUILD SUCCESSFUL
 
 # dashboard
-cd dashboard && npm run build && cd ..
+cd dashboard && npm run build; cd ..
 # 출력: ✓ built in <time>
 ```
 
