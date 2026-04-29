@@ -4,7 +4,7 @@ import json
 import time
 from pathlib import Path
 
-from shared.interfaces.varco import ClassificationResult, VarcoInterface
+from shared.interfaces.varco import ClassificationResult
 
 # detection/src/mocks/ → parents[3] == 프로젝트 루트
 _FIXTURES = Path(__file__).parents[3] / "tests" / "fixtures" / "varco"
