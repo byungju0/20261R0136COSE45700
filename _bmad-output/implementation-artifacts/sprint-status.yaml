@@ -94,7 +94,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-27
-last_updated: 2026-04-29 # Story 1-1 code review completed (status: review → done). Epic 4 (frontend portion) retrospective completed — partial retro covering 4-4 / 4-4-1 / 4-4-2 / 4-5 / 4-6 only (백엔드 4-1~4-3 backlog, 회고 범위 외). Story 1-4 done(backend, PR #12). Story 1-5 done with AC #5 strict gate deferred to Story 5.2. Epic 1 retrospective completed — see epic-1-retro-2026-04-29.md.
+last_updated: 2026-04-29 # Story 1-1 code review completed (status: review → done). Epic 4 (frontend portion) retrospective completed — partial retro covering 4-4 / 4-4-1 / 4-4-2 / 4-5 / 4-6 only (백엔드 4-1~4-3 backlog, 회고 범위 외). Story 1-4 done(backend, PR #12). Story 1-5 done with AC #5 strict gate deferred to Story 5.2. Epic 1 retrospective completed — see epic-1-retro-2026-04-29.md. Story 4-1 created (status: backlog → ready-for-dev). Story 4-1 dev completed (status: in-progress → review, all tasks done, Flyway V4 migration verified, API/Swagger OK, JPQL null-param PostgreSQL bug fixed). Story 4-1 code review completed (status: review → done, 3 patches applied).
 project: 20261R0136COSE45700
 project_key: NOKEY
 
@@ -131,7 +131,7 @@ development_status:
 
   # Epic 4: 탐지 결과 조회 및 통계 대시보드
   epic-4: in-progress
-  4-1-spring-rest-api-기반-구조-및-탐지-목록-엔드포인트: backlog
+  4-1-spring-rest-api-기반-구조-및-탐지-목록-엔드포인트: done
   4-2-탐지-상세-조회-및-수동-크롤링-트리거-엔드포인트: backlog
   4-3-통계-엔드포인트-구현: backlog
   4-4-react-대시보드-메인-화면-및-라우팅-구조: done # 디자인 시스템 v10 overhaul + Blind Hunter/Edge Case Hunter/Security 3-layer 리뷰 통과 + PR #9
