@@ -1,0 +1,58 @@
+package com.tracker.api.service;
+
+import com.tracker.api.dto.DetectionListResponse;
+import com.tracker.api.dto.DetectionResponse;
+import com.tracker.api.exception.InvalidFilterParamException;
+import com.tracker.api.repository.DetectionRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+
+@Service
+@RequiredArgsConstructor
+public class DetectionService {
+
+    private final DetectionRepository detectionRepository;
+
+    @Transactional(readOnly = true)
+    public DetectionListResponse getDetections(
+            LocalDate date, String site, String type, String lang, int page, int size) {
+
+        validatePagination(page, size);
+
+        Instant fromTime = date != null ? date.atStartOfDay(ZoneOffset.UTC).toInstant() : null;
+        Instant toTime   = date != null ? date.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant() : null;
+
+        // 빈 문자열은 null로 변환 (JPQL IS NULL 조건 올바르게 동작)
+        String siteParam = StringUtils.hasText(site) ? site : null;
+        String typeParam = StringUtils.hasText(type) ? type : null;
+        String langParam = StringUtils.hasText(lang) ? lang : null;
+
+        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "confidence"));
+
+        Page<com.tracker.api.domain.Detection> resultPage =
+                detectionRepository.findFiltered(fromTime, toTime, siteParam, typeParam, langParam, pageable);
+
+        var content = resultPage.getContent().stream()
+                .map(DetectionResponse::from)
+                .toList();
+
+        return new DetectionListResponse(content, page, size, resultPage.getTotalElements());
+    }
+
+    private void validatePagination(int page, int size) {
+        if (page < 0) {
+            throw new InvalidFilterParamException("page는 0 이상이어야 합니다.");
+        }
+        if (size < 1) {
+            throw new InvalidFilterParamException("size는 1 이상이어야 합니다.");
+        }
+    }
+}
