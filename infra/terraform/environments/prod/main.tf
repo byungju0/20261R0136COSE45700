@@ -30,8 +30,7 @@ locals {
 module "networking" {
   source = "../../modules/networking"
 
-  region = var.region
-  tags   = local.common_tags
+  # PIVOT — 본 모듈은 입력 변수 0개 (Default VPC lookup만 수행)
 }
 
 ##
