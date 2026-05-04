@@ -1,0 +1,45 @@
+formatter: markdown table
+
+header-from: main.tf
+footer-from: ""
+
+recursive:
+  enabled: true
+  path: infra/terraform/modules
+
+sections:
+  hide: []
+  show:
+    - inputs
+    - modules
+    - outputs
+    - providers
+    - requirements
+    - resources
+
+content: |-
+  {{ .Header }}
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  {{ .Inputs }}
+
+  {{ .Outputs }}
+
+output:
+  file: README.md
+  mode: inject
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+sort:
+  enabled: true
+  by: required

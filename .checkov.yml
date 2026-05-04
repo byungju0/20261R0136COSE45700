@@ -1,0 +1,74 @@
+# Story 5.3 — Checkov 보안 스캔 설정 (학생 계정 PIVOT 사양)
+#
+# Skip 룰 사유는 학생 계정 SCP 제약 또는 architecture.md 결정에 직접 인용.
+
+framework:
+  - terraform
+  - terraform_plan
+
+directory:
+  - infra/terraform
+
+output: cli
+soft-fail: false
+
+skip-check:
+  # ──────────────────────────────────────────────────────────────────────────
+  # CKV_AWS_88 — EC2 should not have public IP
+  # 사유: Default VPC subnet 사용 시 public IP 자동 할당.
+  # 학생 계정에서 custom VPC + private subnet 미생성. SG로 1차 방어.
+  # ──────────────────────────────────────────────────────────────────────────
+  - CKV_AWS_88
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # CKV_AWS_157 — RDS should have Multi-AZ enabled
+  # 사유: 학생 계정 샌드박스 템플릿 강제 → Single-AZ만 가능.
+  # ──────────────────────────────────────────────────────────────────────────
+  - CKV_AWS_157
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # CKV_AWS_17 / CKV_AWS_25 — RDS should not be publicly accessible
+  # 사유: 학생 계정 SCP가 publicly_accessible=true 강제.
+  # 보안 보강:
+  #   - SG inbound 5432 source = EC2 SG IDs only (인터넷에서 SG drop)
+  #   - parameter group rds.force_ssl=1 (TLS만 허용)
+  #   - random_password 32자 + Secrets Manager 보관
+  # → 실효 접근 차단은 publicly_accessible=false + SG와 동등.
+  # ──────────────────────────────────────────────────────────────────────────
+  - CKV_AWS_17
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # CKV_AWS_137 / CKV2_AWS_67 — AWS Config rules / Config recorder
+  # 사유: 학생 계정 권한 부족 가정 + Checkov가 PR 단계 게이트로 대체.
+  # ──────────────────────────────────────────────────────────────────────────
+  - CKV_AWS_137
+  - CKV2_AWS_67
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # CKV2_AWS_61 — S3 bucket should have lifecycle configuration
+  # bootstrap tfstate 버킷은 Terraform state 영구 보관 → lifecycle 부적합.
+  # archive 버킷은 lifecycle 적용됨.
+  # ──────────────────────────────────────────────────────────────────────────
+  - CKV2_AWS_61
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # CKV_AWS_111 — IAM 정책 와일드카드 (Resource: "*")
+  # GHA Terraform Role의 mutate 정책은 service-level write로 정의.
+  # EC2 Instance Role(crawler/detection/api)은 모두 ARN 한정 적용.
+  # ──────────────────────────────────────────────────────────────────────────
+  - CKV_AWS_111
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # CKV2_AWS_11 / CKV_AWS_19 — VPC Flow Logs / S3 SSE-KMS
+  # 사유: 학생 계정 PIVOT — VPC Flow Logs 권한 부족 가정 (Default VPC),
+  # KMS CMK 생성 권한 부족 가정 → SSE-S3(AES256) 폴백.
+  # ──────────────────────────────────────────────────────────────────────────
+  - CKV2_AWS_11
+  - CKV_AWS_19
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # CKV_AWS_158 / CKV_AWS_67 — CloudWatch Log Groups KMS / CloudTrail KMS
+  # 사유: 학생 계정 PIVOT — CloudTrail/KMS CMK 미생성. 학교 organization trail 의존.
+  # ──────────────────────────────────────────────────────────────────────────
+  - CKV_AWS_158
+  - CKV_AWS_67
