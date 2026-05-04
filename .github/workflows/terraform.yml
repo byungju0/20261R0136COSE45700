@@ -66,8 +66,12 @@ jobs:
       - name: TFLint
         run: |
           tflint --init --config="$PWD/.tflint.hcl"
-          for d in $(find infra/terraform -mindepth 2 -type d \
-              \( -path '*/modules/*' -o -path '*/environments/*' -o -path '*/bootstrap' \)); do
+          # `validate` 잡이 `terraform init`으로 .terraform/modules에 외부 모듈을 다운로드해 둔 상태.
+          # find가 그 하위까지 들어가면 외부 모듈 코드의 warning이 잡힘 → -prune으로 .terraform 제외.
+          # -maxdepth 3로 우리 자체 디렉토리만(bootstrap / environments/{env} / modules/{name}) 매칭.
+          for d in $(find infra/terraform -name .terraform -prune -o \
+              -mindepth 2 -maxdepth 3 -type d \
+              \( -path '*/modules/*' -o -path '*/environments/*' -o -path '*/bootstrap' \) -print); do
             echo "::group::tflint $d"
             tflint --config="$PWD/.tflint.hcl" --chdir="$d"
             echo "::endgroup::"
