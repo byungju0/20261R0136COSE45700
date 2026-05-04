@@ -88,9 +88,9 @@ module "rds" {
   db_subnet_group_name   = var.db_subnet_group_name # 보통 "default"
 
   # Custom parameter group 적용 — force_ssl=1
-  parameter_group_name             = aws_db_parameter_group.force_ssl.name
-  create_db_parameter_group        = false
-  use_identifier_prefix            = false
+  parameter_group_name      = aws_db_parameter_group.force_ssl.name
+  create_db_parameter_group = false
+  use_identifier_prefix     = false
 
   backup_retention_period  = var.backup_retention_period
   backup_window            = "17:00-18:00" # KST 02:00-03:00

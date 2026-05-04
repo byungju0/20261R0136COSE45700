@@ -23,7 +23,7 @@ resource "aws_secretsmanager_secret" "varco_api_key" {
   description             = "VARCO LLM API key — 값은 Console 또는 ops 스크립트로 1회 주입"
   recovery_window_in_days = var.recovery_window_in_days
   # 학생 계정 PIVOT — kms_key_id를 null로 두면 AWS-managed alias/aws/secretsmanager 자동 사용
-  kms_key_id              = var.kms_key_id
+  kms_key_id = var.kms_key_id
 
   tags = merge(var.tags, { Module = "secrets", Purpose = "varco-api-key" })
 }
@@ -33,7 +33,7 @@ resource "aws_secretsmanager_secret" "rds_admin_password" {
   description             = "RDS master password — RDS 모듈이 random_password로 자동 주입"
   recovery_window_in_days = var.recovery_window_in_days
   # 학생 계정 PIVOT — kms_key_id를 null로 두면 AWS-managed alias/aws/secretsmanager 자동 사용
-  kms_key_id              = var.kms_key_id
+  kms_key_id = var.kms_key_id
 
   tags = merge(var.tags, { Module = "secrets", Purpose = "rds-admin-password" })
 }
@@ -43,7 +43,7 @@ resource "aws_secretsmanager_secret" "proxy_credentials" {
   description             = "Proxy(IPRoyal/ThorData) credentials — 값은 Console 또는 ops 스크립트로 1회 주입"
   recovery_window_in_days = var.recovery_window_in_days
   # 학생 계정 PIVOT — kms_key_id를 null로 두면 AWS-managed alias/aws/secretsmanager 자동 사용
-  kms_key_id              = var.kms_key_id
+  kms_key_id = var.kms_key_id
 
   tags = merge(var.tags, { Module = "secrets", Purpose = "proxy-credentials" })
 }
