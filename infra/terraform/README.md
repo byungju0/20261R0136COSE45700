@@ -10,7 +10,9 @@ Tracker 시스템의 AWS 인프라(EC2 / RDS / S3 / IAM / Secrets)를 IaC로 관
 > - **RDS**: `publicly_accessible=false` + private subnet → **`true` 강제 + SG 1차 방어 + `rds.force_ssl=1`**
 > - **CloudTrail / KMS CMK / Budgets / Flow Logs**: 학생 계정 권한 부족 가정으로 코드 제외 (학교 default 정책 의존)
 > - **S3 SSE**: KMS → **SSE-S3(AES256)**
-> - **prod 환경**: 미사용 (학생 계정 1개로 dev 1개만 운영)
+> - **prod 환경**: 디렉토리 자체 제거 (학생 단일 환경 — portfolio는 git history `bd172d9`에 보존)
+> - **GHA Role + GitHub OIDC Provider**: CI plan/apply 미사용으로 자원 제거 (CloudShell 단독 운영)
+> - **security-baseline 모듈**: 빈 placeholder 안티패턴 정리로 모듈 자체 제거
 >
 > Production 복구 (졸업 후 실 계정 확보 시): git history에서 PIVOT 이전 commit 복원.
 
@@ -22,18 +24,20 @@ Tracker 시스템의 AWS 인프라(EC2 / RDS / S3 / IAM / Secrets)를 IaC로 관
 infra/terraform/
 ├── bootstrap/                      # 1회성 — state 백엔드 S3 버킷 생성
 ├── modules/
-│   ├── networking/                 # VPC + subnets + S3 endpoint + Flow Logs
+│   ├── networking/                 # Default VPC data source lookup만
 │   ├── security-groups/            # crawler / detection / api / rds 4종
-│   ├── iam/                        # EC2 Instance Roles + GitHub OIDC + GHA Role
-│   ├── ec2-service/                # crawler/detection/api 공통 EC2 패턴
-│   ├── rds/                        # PostgreSQL 16.13 db.t4g.micro Single-AZ
-│   ├── s3-archive/                 # 원본 HTML 아카이브 버킷
-│   ├── security-baseline/          # EBS encryption + CloudTrail + Budgets
-│   └── secrets/                    # Secrets Manager placeholder 3종
+│   ├── iam/                        # EC2 Instance Roles 3종 (GHA Role/OIDC 제거됨)
+│   ├── ec2-service/                # crawler/detection/api 공통 EC2 패턴 (t3.medium x86_64)
+│   ├── rds/                        # PostgreSQL 16.13 db.t3.micro Single-AZ + force_ssl
+│   ├── s3-archive/                 # 원본 HTML 아카이브 버킷 (SSE-S3)
+│   └── secrets/                    # Secrets Manager placeholder 3종 (AWS-managed key)
 └── environments/
-    ├── dev/                        # main 머지 시 자동 apply
-    └── prod/                       # GitHub Environments 보호 규칙 + 수동 승인
+    └── dev/                        # 학생 단일 환경, CloudShell 수동 apply
 ```
+
+> **PIVOT 정리로 제거된 자원** — `environments/prod/`, `modules/security-baseline/`,
+> iam 모듈의 GHA Terraform Role + OIDC Provider. 졸업 후 production 복구 시
+> git history (`bd172d9` 또는 `3b98a13`)에서 함께 복원.
 
 ## 사전 결정 (학생 계정 PIVOT 적용)
 
@@ -127,10 +131,6 @@ terraform apply
 ```
 
 ⚠️ **CloudShell home 디렉토리 1GB 제한 + 일정 기간 미사용 시 자동 wipe**. bootstrap apply 후 `terraform.tfstate` 즉시 로컬 다운로드(CloudShell 우상단 Actions → Download file) + 안전한 곳(1Password 등) 백업 필수.
-
-## prod 환경 미사용
-
-prod는 학생 계정에서 미사용. `terraform apply -var "env=prod"` 실행 금지.
 
 ## CI 게이트 — 정적 가드만 (plan/apply 자동화 없음)
 
