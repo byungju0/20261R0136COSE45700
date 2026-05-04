@@ -2,12 +2,9 @@
 # 실제 사용 시 `cp terraform.tfvars.example terraform.tfvars` 후 값 채움.
 # terraform.tfvars는 .gitignore — public repo에 PII/시크릿 노출 방지.
 #
-# 학생 계정 PIVOT으로 vpc_cidr / availability_zones / public_subnet_cidrs /
-# private_subnet_cidrs / budget_alert_emails 변수는 모두 제거됨 (Default VPC +
-# security-baseline 모듈 비활성으로 미사용). Budgets 이메일 알림이 필요하면
-# 학교 사전 설정 budget의 알림 이메일을 학교 관리자에게 문의.
+# 학생 계정 PIVOT으로 vpc_cidr / availability_zones / public/private_subnet_cidrs /
+# budget_alert_emails / github_repository / tfstate_bucket_name 모두 제거됨
+# (Default VPC + security-baseline 비활성 + IAM GHA Role 비활성으로 미사용).
 
-region              = "ap-northeast-2"
-name_prefix         = "tracker-dev"
-github_repository   = "byungju0/261RCOSE45700"
-tfstate_bucket_name = "tracker-tfstate-dev"
+region      = "ap-northeast-2"
+name_prefix = "tracker-dev"

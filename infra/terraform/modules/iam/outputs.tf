@@ -27,13 +27,3 @@ output "api_role_arn" {
   description = "API EC2 role ARN."
   value       = aws_iam_role.api.arn
 }
-
-output "github_actions_role_arn" {
-  description = "GitHub Actions Terraform IAM role ARN — workflow의 role-to-assume에 사용."
-  value       = aws_iam_role.github_actions.arn
-}
-
-output "oidc_provider_arn" {
-  description = "GitHub OIDC provider ARN (생성한 경우 또는 기존 ARN)."
-  value       = local.oidc_provider_arn
-}

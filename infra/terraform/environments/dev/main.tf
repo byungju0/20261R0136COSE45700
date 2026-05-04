@@ -5,7 +5,6 @@ locals {
     Project     = "tracker"
     Environment = local.env
     ManagedBy   = "terraform"
-    Repository  = var.github_repository
     Account     = "student-account"
   }
 }
@@ -60,7 +59,7 @@ module "s3_archive" {
 }
 
 ##
-# 5) IAM (EC2 Roles + GitHub OIDC + GHA Terraform Role)
+# 5) IAM (EC2 Roles only — GitHub OIDC + GHA Role은 PIVOT 정리로 제거)
 ##
 module "iam" {
   source = "../../modules/iam"
@@ -69,14 +68,6 @@ module "iam" {
   archive_bucket_arn    = module.s3_archive.bucket_arn
   detection_secret_arns = module.secrets.detection_secret_arns
   api_secret_arns       = module.secrets.api_secret_arns
-  tfstate_bucket_name   = var.tfstate_bucket_name
-
-  create_oidc_provider = true
-
-  github_actions_sub_patterns = [
-    "repo:${var.github_repository}:ref:refs/heads/main",
-    "repo:${var.github_repository}:pull_request",
-  ]
 
   tags = local.common_tags
 }
