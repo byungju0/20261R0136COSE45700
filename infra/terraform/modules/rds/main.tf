@@ -73,9 +73,13 @@ module "rds" {
 
   db_name  = var.db_name
   username = var.username
-  password = random_password.admin.result
 
+  # terraform-aws-modules/rds v7+: password 인자 제거 → password_wo (write-only ephemeral) 사용.
+  # password_wo는 Terraform 1.11+ ephemeral 필드라 tfstate에 저장되지 않음 → 보안 개선.
+  # password_wo_version은 비밀번호 변경 트리거 (값 increment 시 RDS update).
   manage_master_user_password = false
+  password_wo                 = random_password.admin.result
+  password_wo_version         = 1
 
   # 학생 계정 강제: publicly_accessible = true
   publicly_accessible    = true
@@ -88,18 +92,19 @@ module "rds" {
   db_subnet_group_name   = var.db_subnet_group_name # 보통 "default"
 
   # Custom parameter group 적용 — force_ssl=1
+  # v7에서 use_identifier_prefix 변수 제거됨 (default false 자동 적용 — 우리 의도와 일치)
   parameter_group_name      = aws_db_parameter_group.force_ssl.name
   create_db_parameter_group = false
-  use_identifier_prefix     = false
 
   backup_retention_period  = var.backup_retention_period
   backup_window            = "17:00-18:00" # KST 02:00-03:00
   maintenance_window       = "Sun:18:00-Sun:19:00"
   delete_automated_backups = !var.deletion_protection
 
-  deletion_protection       = var.deletion_protection
-  skip_final_snapshot       = var.skip_final_snapshot
-  final_snapshot_identifier = "${var.identifier}-final-snapshot"
+  deletion_protection = var.deletion_protection
+  skip_final_snapshot = var.skip_final_snapshot
+  # v7: final_snapshot_identifier → final_snapshot_identifier_prefix (suffix는 모듈이 자동 timestamp 추가)
+  final_snapshot_identifier_prefix = var.identifier
 
   auto_minor_version_upgrade = true
 
