@@ -1,6 +1,7 @@
 package com.tracker.api.controller;
 
 import com.tracker.api.dto.StatsResponse;
+import com.tracker.api.exception.InvalidFilterParamException;
 import com.tracker.api.service.StatsService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,9 +23,9 @@ class StatsControllerTest {
 
     @Test
     void getStats_returnsOk() throws Exception {
-        var typeItem = new StatsResponse.DistributionItem("매크로_판매", 5L);
-        var siteItem = new StatsResponse.DistributionItem("tailstar.net", 3L);
-        var langItem = new StatsResponse.DistributionItem("zh-CN", 4L);
+        var typeItem = new StatsResponse.TypeDistributionItem("매크로_판매", 5L);
+        var siteItem = new StatsResponse.SiteDistributionItem("tailstar.net", 3L);
+        var langItem = new StatsResponse.LangDistributionItem("zh-CN", 4L);
         var response = new StatsResponse(10L, 2L,
                 List.of(typeItem), List.of(siteItem), List.of(langItem), List.of());
         when(statsService.getStats(null)).thenReturn(response);
@@ -33,10 +34,10 @@ class StatsControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.todayCount").value(10))
                 .andExpect(jsonPath("$.deltaFromYesterday").value(2))
-                .andExpect(jsonPath("$.typeDistribution[0].label").value("매크로_판매"))
+                .andExpect(jsonPath("$.typeDistribution[0].type").value("매크로_판매"))
                 .andExpect(jsonPath("$.typeDistribution[0].count").value(5))
-                .andExpect(jsonPath("$.siteDistribution[0].label").value("tailstar.net"))
-                .andExpect(jsonPath("$.langDistribution[0].label").value("zh-CN"))
+                .andExpect(jsonPath("$.siteDistribution[0].site").value("tailstar.net"))
+                .andExpect(jsonPath("$.langDistribution[0].lang").value("zh-CN"))
                 .andExpect(jsonPath("$.trend").isArray())
                 .andExpect(header().exists("X-Correlation-ID"));
     }
@@ -64,5 +65,15 @@ class StatsControllerTest {
                 .andExpect(status().isOk());
 
         verify(statsService).getStats("monthly");
+    }
+
+    @Test
+    void getStats_withInvalidPeriod_returnsBadRequest() throws Exception {
+        when(statsService.getStats("daily"))
+                .thenThrow(new InvalidFilterParamException("period는 weekly 또는 monthly만 허용됩니다."));
+
+        mockMvc.perform(get("/api/stats").param("period", "daily"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_FILTER_PARAM"));
     }
 }

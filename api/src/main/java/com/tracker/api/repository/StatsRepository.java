@@ -17,8 +17,8 @@ public class StatsRepository {
     private EntityManager em;
 
     @Transactional(readOnly = true)
-    public long countToday() {
-        Instant from = LocalDate.now(ZoneOffset.UTC).atStartOfDay().toInstant(ZoneOffset.UTC);
+    public long countToday(LocalDate today) {
+        Instant from = today.atStartOfDay().toInstant(ZoneOffset.UTC);
         Instant to = from.plus(1, ChronoUnit.DAYS);
         return (Long) em.createQuery(
                 "SELECT COUNT(d) FROM Detection d WHERE d.detectedAt >= :from AND d.detectedAt < :to AND d.confidence >= 0.70")
@@ -28,8 +28,8 @@ public class StatsRepository {
     }
 
     @Transactional(readOnly = true)
-    public long countYesterday() {
-        Instant to = LocalDate.now(ZoneOffset.UTC).atStartOfDay().toInstant(ZoneOffset.UTC);
+    public long countYesterday(LocalDate today) {
+        Instant to = today.atStartOfDay().toInstant(ZoneOffset.UTC);
         Instant from = to.minus(1, ChronoUnit.DAYS);
         return (Long) em.createQuery(
                 "SELECT COUNT(d) FROM Detection d WHERE d.detectedAt >= :from AND d.detectedAt < :to AND d.confidence >= 0.70")

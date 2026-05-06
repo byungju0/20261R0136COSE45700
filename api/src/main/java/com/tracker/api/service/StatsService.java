@@ -2,6 +2,7 @@ package com.tracker.api.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tracker.api.dto.StatsResponse;
+import com.tracker.api.exception.InvalidFilterParamException;
 import com.tracker.api.repository.StatsRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -12,7 +13,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.IntStream;
 
 @Slf4j
 @Service
@@ -30,8 +34,10 @@ public class StatsService {
         this.cacheRedisTemplate = cacheRedisTemplate;
     }
 
+    @Transactional(readOnly = true)
     public StatsResponse getStats(String period) {
-        String cacheKey = buildCacheKey(period);
+        String normalizedPeriod = normalizePeriod(period);
+        String cacheKey = buildCacheKey(normalizedPeriod);
 
         try {
             String cached = cacheRedisTemplate.opsForValue().get(cacheKey);
@@ -42,7 +48,7 @@ public class StatsService {
             log.warn("Redis cache read failed for key '{}': {}", cacheKey, e.getMessage());
         }
 
-        StatsResponse response = buildStats(period);
+        StatsResponse response = buildStats(normalizedPeriod, LocalDate.now(ZoneOffset.UTC));
 
         try {
             String json = objectMapper.writeValueAsString(response);
@@ -54,55 +60,79 @@ public class StatsService {
         return response;
     }
 
-    @Transactional(readOnly = true)
-    StatsResponse buildStats(String period) {
-        long todayCount = statsRepository.countToday();
-        long yesterdayCount = statsRepository.countYesterday();
+    StatsResponse buildStats(String period, LocalDate today) {
+        long todayCount = statsRepository.countToday(today);
+        long yesterdayCount = statsRepository.countYesterday(today);
         long delta = todayCount - yesterdayCount;
 
         var typeDistribution = statsRepository.findTypeDistributionRaw().stream()
                 .filter(row -> row[0] != null)
-                .map(row -> new StatsResponse.DistributionItem((String) row[0], ((Number) row[1]).longValue()))
+                .map(row -> new StatsResponse.TypeDistributionItem((String) row[0], ((Number) row[1]).longValue()))
                 .toList();
 
         var siteDistribution = statsRepository.findSiteDistributionRaw().stream()
                 .filter(row -> row[0] != null)
-                .map(row -> new StatsResponse.DistributionItem((String) row[0], ((Number) row[1]).longValue()))
+                .map(row -> new StatsResponse.SiteDistributionItem((String) row[0], ((Number) row[1]).longValue()))
                 .toList();
 
         var langDistribution = statsRepository.findLangDistributionRaw().stream()
                 .filter(row -> row[0] != null)
-                .map(row -> new StatsResponse.DistributionItem((String) row[0], ((Number) row[1]).longValue()))
+                .map(row -> new StatsResponse.LangDistributionItem((String) row[0], ((Number) row[1]).longValue()))
                 .toList();
 
-        List<StatsResponse.TrendItem> trend = buildTrend(period);
+        List<StatsResponse.TrendItem> trend = buildTrend(period, today);
 
         return new StatsResponse(todayCount, delta, typeDistribution, siteDistribution, langDistribution, trend);
     }
 
-    private List<StatsResponse.TrendItem> buildTrend(String period) {
+    private List<StatsResponse.TrendItem> buildTrend(String period, LocalDate today) {
         if ("weekly".equals(period)) {
-            Instant to = LocalDate.now(ZoneOffset.UTC).plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
-            Instant from = LocalDate.now(ZoneOffset.UTC).minusDays(6).atStartOfDay().toInstant(ZoneOffset.UTC);
-            return toTrendItems(statsRepository.findTrendRaw(from, to));
+            LocalDate fromDate = today.minusDays(6);
+            Instant from = fromDate.atStartOfDay().toInstant(ZoneOffset.UTC);
+            Instant to = today.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+            return toTrendItems(statsRepository.findTrendRaw(from, to), fromDate, 7);
         } else if ("monthly".equals(period)) {
-            Instant to = LocalDate.now(ZoneOffset.UTC).plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
-            Instant from = LocalDate.now(ZoneOffset.UTC).minusDays(29).atStartOfDay().toInstant(ZoneOffset.UTC);
-            return toTrendItems(statsRepository.findTrendRaw(from, to));
+            LocalDate fromDate = today.minusDays(29);
+            Instant from = fromDate.atStartOfDay().toInstant(ZoneOffset.UTC);
+            Instant to = today.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+            return toTrendItems(statsRepository.findTrendRaw(from, to), fromDate, 30);
         }
         return List.of();
     }
 
-    private List<StatsResponse.TrendItem> toTrendItems(List<Object[]> rows) {
-        return rows.stream()
-                .map(row -> new StatsResponse.TrendItem(row[0].toString(), ((Number) row[1]).longValue()))
+    private List<StatsResponse.TrendItem> toTrendItems(List<Object[]> rows, LocalDate fromDate, int days) {
+        Map<String, Long> countsByDate = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row[0] != null) {
+                countsByDate.put(row[0].toString(), ((Number) row[1]).longValue());
+            }
+        }
+
+        return IntStream.range(0, days)
+                .mapToObj(offset -> {
+                    String date = fromDate.plusDays(offset).toString();
+                    return new StatsResponse.TrendItem(date, countsByDate.getOrDefault(date, 0L));
+                })
                 .toList();
     }
 
     private String buildCacheKey(String period) {
-        if (period != null && !period.isBlank()) {
+        if (period != null) {
             return "cache:detections:stats:" + period;
         }
         return "cache:detections:stats";
+    }
+
+    private String normalizePeriod(String period) {
+        if (period == null || period.isBlank()) {
+            return null;
+        }
+
+        String normalized = period.trim();
+        if ("weekly".equals(normalized) || "monthly".equals(normalized)) {
+            return normalized;
+        }
+
+        throw new InvalidFilterParamException("period는 weekly 또는 monthly만 허용됩니다.");
     }
 }
