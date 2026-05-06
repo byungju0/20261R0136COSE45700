@@ -13,9 +13,10 @@
 ├── api/              # Java Spring Boot 3.5 — REST API (PostgreSQL + Flyway)
 ├── dashboard/        # React + Vite + TypeScript — 운영자 대시보드
 ├── shared/           # Python 공유 모듈 (CorrelationId, CrawlEvent, VarcoInterface 등)
-├── infra/            # Docker Compose (Redis + PostgreSQL), Prometheus, Grafana
+├── infra/            # 로컬: Docker Compose (Redis + PostgreSQL) + Prometheus + Grafana
+│   └── terraform/    # AWS IaC — bootstrap + 7 modules + dev 환경 (학생 계정 PIVOT 사양)
 ├── tests/            # 크로스 컴포넌트 테스트 (fixtures/e2e/performance/chaos)
-└── .github/workflows/  # CI/CD 워크플로우 4종 (crawler/detection/api/dashboard)
+└── .github/workflows/  # CI/CD 워크플로우 5종 (crawler/detection/api/dashboard/terraform)
 ```
 
 ## 사전 요구사항
@@ -136,7 +137,7 @@ cd dashboard && npm run build; cd ..
 
 ## CI/CD
 
-`.github/workflows/` 에 4개 워크플로우가 구성되어 있습니다:
+`.github/workflows/` 에 5개 워크플로우가 구성되어 있습니다:
 
 | 파일 | 트리거 | 내용 |
 |------|--------|------|
@@ -144,6 +145,7 @@ cd dashboard && npm run build; cd ..
 | `detection.yml` | push/PR (detection/**) | pytest 단위·통합 테스트, flake8 |
 | `api.yml` | push/PR (api/**) | Gradle build + JUnit 테스트 |
 | `dashboard.yml` | push/PR (dashboard/**) | npm build + lint |
+| `terraform.yml` | push/PR (infra/terraform/**) | 정적 가드: fmt / validate / TFLint / Checkov (학생 계정 PIVOT — 실 plan/apply는 CloudShell 단독 운영) |
 
 ## 스프린트 현황
 
@@ -153,7 +155,7 @@ cd dashboard && npm run build; cd ..
 | Epic 2 | 자동 크롤링 및 전처리 파이프라인 | **완료** |
 | Epic 3 | AI 기반 탐지 파이프라인 | 진행 중 (3-4, 3-5 예정) |
 | Epic 4 | 탐지 결과 조회 및 통계 대시보드 | 진행 중 (4-2, 4-3 예정) |
-| Epic 5 | 운영·모니터링·프로덕션 배포 | 예정 |
+| Epic 5 | 운영·모니터링·프로덕션 배포 | 진행 중 (5-3 review, 5-1·5-2·5-4 예정) |
 
 자세한 스토리별 상태: [`_bmad-output/implementation-artifacts/sprint-status.yaml`](_bmad-output/implementation-artifacts/sprint-status.yaml)
 
@@ -163,3 +165,9 @@ cd dashboard && npm run build; cd ..
 - [Architecture](_bmad-output/planning-artifacts/architecture.md) — 시스템 아키텍처 결정 문서
 - [Epics](_bmad-output/planning-artifacts/epics.md) — 에픽 및 스토리 분해
 - [Sprint Status](_bmad-output/implementation-artifacts/sprint-status.yaml) — 스프린트 진행 현황
+- [Deferred Work](_bmad-output/implementation-artifacts/deferred-work.md) — 보류 항목 트래킹
+
+## 인프라 문서
+
+- [infra/terraform/README.md](infra/terraform/README.md) — Terraform IaC 구조·bootstrap·CloudShell 운영 절차 (학생 계정 PIVOT 사양)
+- [infra/DATA_POLICY.md](infra/DATA_POLICY.md) — 수집 데이터 사용·공개 정책 (NFR9)
