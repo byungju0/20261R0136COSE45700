@@ -220,6 +220,12 @@ npm install @tanstack/react-query axios recharts \
 
 ### Infrastructure & Deployment
 
+> **2026-05-06 PIVOT — Terraform IaC 폐기, ClickOps 전환.**
+>
+> 학생 IAM 사용자(`arn:aws:iam::965814678898:user/ku-hys-02`)에서 (1) IAM Access Key 발급 차단 (2) CloudShell `cloudshell:CreateEnvironment` explicit deny (3) IAM Role 생성 차단 — Terraform이 AWS API 호출할 자격증명 통로가 0개로 apply 자체가 불가능. `infra/terraform/` + Terraform CI/lint configs 일괄 제거 (commit `13d96a9`). 데모는 콘솔 ClickOps + 스크린샷으로 진행하며, IaC 코드는 git history(`b7e24d3`, `bd172d9`, `3b98a13`) 보존 — 졸업 후 개인 계정에서 동일 인프라 재현 가능.
+>
+> **아래 표의 Terraform 관련 결정 (IaC 도구 / state 백엔드 / 모듈 사용 정책 / OIDC / CI 게이트 / pre-commit / terraform-docs 등)은 모두 obsolete.** EC2/RDS/Graviton 사이징·NAT 운영 방식·보안 baseline 등 **인프라 사양 결정값은 ClickOps 환경에서도 그대로 적용** — 콘솔에서 동일 사양으로 자원을 만들면 됨. PIVOT 1차(2026-05-04 학생 계정 SCP)에서 EC2 t3.medium x86_64 ×3 / RDS db.t3.micro publicly_accessible=true(SG+force_ssl 보강) / Default VPC / CloudTrail·KMS CMK·Budgets·Flow Logs 미생성으로 다운그레이드된 사항도 함께 적용. 정확한 ClickOps 적용 사양은 Story 5.3 결과 문서 + sprint-status 참조.
+
 | 결정 | 선택 | 근거 |
 |------|------|------|
 | VARCO 장애 처리 | 큐 대기 (Hold) | VARCO 다운 시 Redis 큐에 메시지 유지. 3회 재시도 후 DLQ 격리. 복구 후 DLQ → 재처리. Redis AOF 설정으로 EC2 재시작 후 메시지 보존. Translation 스킵 시 Recall 저하 리스크보다 데이터 정합성 우선. |
