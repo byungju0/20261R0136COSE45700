@@ -172,12 +172,13 @@ npm install @tanstack/react-query axios recharts \
 - 페이지네이션: Offset 기반
 - 라우팅: React Router v7
 - 데이터 갱신: TanStack Query 폴링 60초
-- IaC 도구: Terraform `>= 1.14` + AWS provider `~> 6.0` + terraform-aws-modules (S3 native locking 백엔드, 디렉토리 분리, dev 자동/prod 수동 승인, GitHub OIDC, fmt/validate/TFLint/Checkov/terraform-docs CI)
-- EC2 인스턴스 사이징: Crawler r6g.large(2vCPU/16GB, Graviton, RAM 우선) / Detection t4g.medium(2vCPU/4GB) / API t4g.large(2vCPU/8GB) — 월 예산 30만원(~$215) 상한 내
-- RDS: PostgreSQL 16.13 / db.t4g.micro Single-AZ + automated backup 7일 (PG16의 minor patch 누적·운영 성숙도 우선 — PG17도 pgvector 호환되나 성능 차이 미미. Multi-AZ는 비용 2배로 학생 예산엔 미도입)
-- EC2 접근: SSM Session Manager (SSH 키 미사용, 외부 22번 차단)
-- S3 트래픽: VPC Gateway Endpoint로 라우팅 (NAT 통과 회피)
-- 보안 baseline: EBS encryption by default + VPC Flow Logs(CloudWatch) + CloudTrail KMS 암호화 (AWS Config/SecurityHub/GuardDuty는 학생 예산 초과로 미도입, Checkov IaC 스캔으로 대체)
+- 인프라 운영 모델: **콘솔 ClickOps** (2026-05-06 PIVOT — 학생 IAM 자격증명 통로 0개로 IaC 폐기, Story 5.3 결과 문서 참조). Terraform 코드는 git history(`b7e24d3`, `bd172d9`)에 보존
+- EC2 인스턴스 사이징: Crawler / Detection / API 모두 **t3.medium x86_64** (2vCPU/4GB) — 학생 계정 SCP가 t3.{nano,micro,small,medium} 4종으로 한정, Graviton(arm64) 미가용
+- RDS: PostgreSQL 16.13 / **db.t3.micro** Single-AZ + automated backup 7일 (학생 계정 SCP가 db.t4g.micro arm64 미가용)
+- EC2 접근: SSM Session Manager (SSH 키 미사용, 외부 22번 차단) — 단, EC2에 attach할 IAM Role을 학생이 신규 생성 불가 → 학교 사전 생성 Role(예: `LabRole`)에 `AmazonSSMManagedInstanceCore` 정책이 포함되어야 가능
+- RDS 네트워크: 학생 계정 SCP가 `publicly_accessible=true` 강제 → SG inbound 5432 source = {detection-sg, api-sg} 한정 + parameter group `rds.force_ssl=1`로 평문 접속 차단 (3중 가드)
+- S3 트래픽: VPC Gateway Endpoint **미생성** (학생 계정 라우트 테이블 수정 권한 불확실) — IGW 경유, 동일 region 내라 비용 영향 미미
+- 보안 baseline: **모두 학교 default 정책 의존** — EBS encryption / VPC Flow Logs / CloudTrail / KMS CMK / AWS Budgets 모두 학생 계정 권한 부족 가정으로 미생성. 학교 organization trail 활성 여부는 별도 확인 필요
 
 **Deferred Decisions (Post-MVP):**
 - DLQ 알람 채널: Grafana UI만 사용 (Slack/이메일은 Growth 단계)
@@ -224,7 +225,9 @@ npm install @tanstack/react-query axios recharts \
 >
 > 학생 IAM 사용자(`arn:aws:iam::965814678898:user/ku-hys-02`)에서 (1) IAM Access Key 발급 차단 (2) CloudShell `cloudshell:CreateEnvironment` explicit deny (3) IAM Role 생성 차단 — Terraform이 AWS API 호출할 자격증명 통로가 0개로 apply 자체가 불가능. `infra/terraform/` + Terraform CI/lint configs 일괄 제거 (commit `13d96a9`). 데모는 콘솔 ClickOps + 스크린샷으로 진행하며, IaC 코드는 git history(`b7e24d3`, `bd172d9`, `3b98a13`) 보존 — 졸업 후 개인 계정에서 동일 인프라 재현 가능.
 >
-> **아래 표의 Terraform 관련 결정 (IaC 도구 / state 백엔드 / 모듈 사용 정책 / OIDC / CI 게이트 / pre-commit / terraform-docs 등)은 모두 obsolete.** EC2/RDS/Graviton 사이징·NAT 운영 방식·보안 baseline 등 **인프라 사양 결정값은 ClickOps 환경에서도 그대로 적용** — 콘솔에서 동일 사양으로 자원을 만들면 됨. PIVOT 1차(2026-05-04 학생 계정 SCP)에서 EC2 t3.medium x86_64 ×3 / RDS db.t3.micro publicly_accessible=true(SG+force_ssl 보강) / Default VPC / CloudTrail·KMS CMK·Budgets·Flow Logs 미생성으로 다운그레이드된 사항도 함께 적용. 정확한 ClickOps 적용 사양은 Story 5.3 결과 문서 + sprint-status 참조.
+> **아래 표 전체가 production 사양 historical record.** Terraform 관련 결정 (IaC 도구 / state 백엔드 / 모듈 사용 정책 / OIDC / CI 게이트 / pre-commit / terraform-docs)은 2026-05-06 ClickOps PIVOT으로 obsolete. EC2 사이징(r6g.large / t4g.medium / t4g.large)·Graviton(arm64) 채택·db.t4g.micro·VPC Gateway Endpoint·EBS encryption / VPC Flow Logs / CloudTrail / KMS CMK / AWS Budgets·Crawl4AI `max_session_permit=6~8` 등 모든 사양 결정도 학생 계정 SCP(인스턴스 4종 한정 + Graviton 미가용 + 보안 baseline 자원 권한 부족)로 1차 PIVOT(2026-05-04) 시점에 모두 다운그레이드됨.
+>
+> **실제 ClickOps 적용 사양**: EC2 모두 **t3.medium x86_64 4GB ×3** / RDS **db.t3.micro publicly_accessible=true**(SG inbound source 한정 + `rds.force_ssl=1` 보강) / Default VPC + IGW 경유 / EBS encryption·Flow Logs·CloudTrail·KMS CMK·Budgets·Endpoint **모두 미생성** / Crawl4AI `max_session_permit` 4GB 환경에서 2~3 보수적. 정확한 사양은 Story 5.3 결과 문서 + 기획서 2.1.1.a 참조. production 사양은 git history(`b7e24d3`, `bd172d9`)에 보존되어 졸업 후 개인 계정에서 1회 apply로 재현 가능.
 
 | 결정 | 선택 | 근거 |
 |------|------|------|
@@ -673,25 +676,10 @@ tracker/
 │   ├── grafana/
 │   │   └── dashboards/
 │   │       └── tracker.json
-│   └── terraform/                     # AWS IaC (Story 5.3에서 본격 구현)
-│       ├── bootstrap/                 # state 백엔드 1회성 부트스트랩
-│       │   └── main.tf                # S3 state 버킷 (native locking, DynamoDB 불필요)
-│       ├── modules/                   # 재사용 모듈
-│       │   ├── networking/            # VPC + subnets + 보안 그룹
-│       │   ├── ec2-service/           # crawler/detection/api 공통 패턴
-│       │   ├── rds/                   # PostgreSQL (NFR7 보안 그룹 포함)
-│       │   ├── elasticache/           # Redis (NFR8 — t3.medium, AOF on)
-│       │   └── s3-frontend/           # dashboard 정적 호스팅 (CloudFront 옵션)
-│       └── environments/
-│           ├── dev/
-│           │   ├── main.tf
-│           │   ├── variables.tf
-│           │   ├── terraform.tfvars   # gitignore (시크릿 변수 없도록 검증)
-│           │   └── backend.tf         # S3 backend (dev tfstate)
-│           └── prod/
-│               └── (동일 구조, prod tfstate)
 │
 └── .env.example                       # 루트 공통 환경변수 템플릿
+
+# Note: AWS 인프라(EC2/RDS/S3/SG/IAM)는 2026-05-06 ClickOps PIVOT으로 콘솔 수동 생성. 1차 IaC 시도(Terraform)는 git history(b7e24d3, bd172d9)에 보존 — 졸업 후 개인 계정에서 1회 apply로 동일 인프라 재현 가능. 사유는 Story 5.3 결과 문서 참조.
 ```
 
 ### Architectural Boundaries
