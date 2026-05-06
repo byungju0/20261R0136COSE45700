@@ -106,7 +106,9 @@
 - **Branch Protection strict merge gate / AC #5** [docs/ci-setup.md:17] — Story 1.5의 4개 workflow는 `paths:` 필터가 있어 required check로 직접 등록하면 무관 경로 PR에서 skipped check가 pending으로 남을 수 있다. Strict PR merge blocking은 Story 5.2에서 항상 실행되는 `ci-aggregator.yml` 또는 동등한 required check 설계로 처리한다.
 
 
-## Deferred from: dev of 5-3-aws-프로덕션-인프라-프로비저닝 (2026-05-04)
+## Deferred from: dev of 5-3-aws-프로덕션-인프라-프로비저닝 (2026-05-04) — _OBSOLETE_
+
+> **2026-05-06 — 본 섹션 + 다음 PIVOT 섹션 모두 obsolete.** Story 5-3이 ClickOps로 전환되며 Terraform 자체가 폐기됨(commit `13d96a9`). 아래 항목들은 모두 Terraform 코드 가정 기반이라 더 이상 추적 대상 아님. 기록 보존만 목적. 새로운 ClickOps 환경에서의 deferred 항목은 본 파일 맨 아래 `Deferred from: Story 5-3 ClickOps PIVOT (2026-05-06)` 참조.
 
 - **dev 환경 실 apply 미실행** [Task 10.6, 13.1~13.5] — 본 세션은 코드/CI/문서까지(Option A). bootstrap 1회 apply 및 dev 환경 apply, SSM Session Manager 접속 검증, RDS SG 격리 검증, 24시간 비용 측정은 별도 ops 세션에서 수행. AC #1·#12·#19 일부의 실제 동작 확인 항목.
 - **GitHub repository Variables/Environments 등록 미실행** [`.github/workflows/terraform.yml`] — `AWS_TF_ROLE_DEV` / `AWS_TF_ROLE_PROD` Variables, `prod` Environment + reviewers 설정은 Console 작업이라 실 apply 후 수행. 등록 전까지 PR plan-dev / apply-* 잡은 OIDC assume 실패.
@@ -147,3 +149,16 @@
 - **bootstrap state 파일 보관 — CloudShell 사용 시 추가 risk** — CloudShell 종료 시 home 디렉토리 1GB 제한 + 일정 기간 미사용 시 자동 wipe. bootstrap apply 후 즉시 `terraform.tfstate` 로컬 다운로드 + 안전한 곳(1Password 등) 백업 필수. 백업 안 하면 dev 환경 destroy 시 잔여 자원 manual cleanup 필요.
 - **IAM Access Key 발급 차단 가능성** — 학교가 보안상 IAM 사용자 Access Key 발급을 막아둔 경우 로컬 + MFA 토큰 옵션(README Option B) 사용 불가 → CloudShell만 가능. apply 시도 전 IAM 콘솔에서 "Create access key" 버튼 활성 여부 확인 필요.
 - **콘솔에서 EC2 launch wizard 외 인스턴스 타입 화이트리스트** — `<instance-type-allow-policy>` + `<t3-extra-allow-policy>` 정책 본문 조회 권한 부족으로 정확한 화이트리스트 미확정. 콘솔 EC2 launch wizard 드롭다운에 t3.{nano,micro,small,medium}만 표시되었으나 다른 타입(예: c5.large)은 시도 시 거부 예상. instance_type validation은 4종으로 좁혀둠 — 추가 타입 필요 시 학교 관리자 문의.
+
+## Deferred from: Story 5-3 ClickOps PIVOT (2026-05-06)
+
+학생 IAM 사용자(`ku-hys-02`)에서 Terraform 자격증명 통로 0개(IAM Access Key 차단 + CloudShell deny + IAM Role 생성 deny) 확인되어 Terraform IaC 폐기 + ClickOps 전환. 위 두 섹션의 deferred 항목들은 모두 Terraform 코드 가정 기반이라 더 이상 유효하지 않음. ClickOps 환경에서 새로 발생하는 deferred:
+
+- **인프라 변경 추적 불가** — ClickOps는 누가 언제 무엇을 바꿨는지 코드로 남지 않음. CloudTrail organization trail이 학교 측에 활성되어 있다면 그것에 의존, 없으면 변경 이력 0. 발표 자료엔 ClickOps 시점 스크린샷으로 대체.
+- **인프라 재현성 0** — 학생 계정 자체에서 자원이 destroy되거나 학기 종료 후 계정 회수되면 동일 환경 재현 불가. 졸업 후 개인 계정에서는 git history(`b7e24d3`, `bd172d9`)의 Terraform 코드로 1회 apply 시 재현 가능.
+- **IAM Role 생성 불가 → EC2 SSM 접속 가능성 미확정** — 학교가 미리 만든 EC2 Trust Role(예: `LabRole`, `voclabs`)이 있는지 확인 필요. 있고 `AmazonSSMManagedInstanceCore` 정책이 붙어있으면 SSM 접속 가능. 없으면 EC2 IAM Role 0 → SSM 불가 → 외부 22 SSH 키 또는 EC2 접속 자체 포기.
+- **Secrets Manager 접근 권한 미확정** — 위 EC2 Role이 `secretsmanager:GetSecretValue` 권한도 가지고 있는지 따로 확인 필요. 권한 없으면 VARCO API key + RDS 비밀번호를 EC2 user_data에 임시 평문으로 박는 방법(보안 trade-off) 또는 환경변수 직접 주입.
+- **RDS 보안 그룹 인바운드 검증** — ClickOps로 RDS 만들 때 publicly_accessible=true 강제되므로 SG 인바운드를 EC2 SG ID 한정으로 좁히는 게 유일한 방어선. 콘솔에서 SG 룰 정확히 입력하는지 1회 검증 필요(인터넷에서 직접 5432 접속 시도 → 거절 확인).
+- **rds.force_ssl=1 parameter group** — RDS 콘솔에서 custom parameter group 만들고 적용해야 평문 접속 차단. ClickOps 절차에서 빠뜨리기 쉬움 — 데모 전 체크리스트.
+- **인스턴스 종료 후 비용 누수** — 학기 종료 후 EC2 stop이 아니라 terminate, RDS도 final snapshot 후 delete, S3도 비우고 delete. ClickOps는 자동 destroy가 없어 수동 정리 필수. 학교 사전 설정 budget 한도 초과 시 강제 종료될 수도 있음.
+- **재현 가능성을 위한 ClickOps 절차 문서화** — 콘솔에서 만든 자원의 정확한 설정값(EC2 AMI ID, SG 룰, RDS 파라미터 등)을 별도 markdown 문서로 캡처해두는 게 졸업 후 재현/발표 자료에 유리. `docs/clickops-runbook.md` 같은 형식으로 남기는 걸 권장.

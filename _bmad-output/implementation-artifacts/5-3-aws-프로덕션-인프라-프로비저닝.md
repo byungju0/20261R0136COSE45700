@@ -1,10 +1,32 @@
 # Story 5.3: AWS 프로덕션 인프라 프로비저닝 (학생 계정 사양)
 
-Status: review
+Status: closed (ClickOps demo)
 
-> **2026-05-04 PIVOT — 학생 계정 제약에 맞춰 architecture 전면 재설계.**
+> **2026-05-06 PIVOT (최종) — Terraform IaC 자체 폐기, ClickOps로 전환.**
+>
+> 학생 IAM 사용자(`arn:aws:iam::965814678898:user/ku-hys-02`)에서 다음 통로가 모두 차단됨이 확인됨:
+> 1. **IAM Access Key 발급 차단** (`iam:ListAccessKeys` 권한 거부, 2026-05-04 확인) — 로컬 머신에서 `aws configure` 사용 불가
+> 2. **CloudShell explicit deny** (`cloudshell:CreateEnvironment`, 2026-05-06 확인) — 콘솔 안에서 셸 사용 불가
+> 3. **IAM Role 생성 차단** (학생 본인 확인) — GitHub Actions OIDC + AssumeRole 통로도 불가
+>
+> Terraform이 AWS API를 호출할 자격증명 통로가 0개로 학생 권한 변경 없이는 apply 자체가 불가능. 학교 관리자에게 권한 요청은 옵션 외이므로 IaC 시도 종료. `infra/terraform/` + lint configs + workflow 일괄 제거 (commit `13d96a9`). 데모는 콘솔 ClickOps + 스크린샷으로 진행하며, 코드는 git history(`b7e24d3`, `bd172d9`, `3b98a13` 등)에 보존되어 졸업 후 개인 계정에서 동일 인프라 재현 가능.
+>
+> ---
+>
+> **2026-05-04 PIVOT (1차) — 학생 계정 제약에 맞춰 architecture 전면 재설계.** _[기록 보존]_
 > 기존 production-grade IaC (PR #18 기준 r6g/t4g + custom VPC + CloudTrail/KMS CMK/Budgets) 결정을
-> 학생 계정 SCP 제약에 맞춰 다운그레이드. `(A2) 트랙` 채택. 코드/CI/문서 모든 측면 완료, 실 apply는 별도 ops 세션 deferred.
+> 학생 계정 SCP 제약에 맞춰 다운그레이드. `(A2) 트랙` 채택. 코드/CI/문서 모든 측면 완료, 실 apply는 별도 ops 세션 deferred. 이후 2026-05-06 ClickOps PIVOT으로 코드 제거됨 — 아래 AC/Tasks/Dev Notes는 **IaC 코드 작성 노력의 기록**이며 실제 인프라는 ClickOps로 재구축됨.
+
+## 최종 결과 요약 (2026-05-06)
+
+| 항목 | 결과 |
+|---|---|
+| AC #1~24 (코드 측면) | ✅ Terraform 코드로 정의·검증 완료 (`fmt`/`validate`/TFLint/Checkov 정적 가드 모두 통과) — git history 보존 |
+| 실 인프라 프로비저닝 | ⛔ Terraform apply 불가 → **ClickOps로 전환** |
+| 데모 자료 | ClickOps로 만든 자원 스크린샷 + 콘솔 화면 캡처 |
+| 졸업 후 재현성 | 개인 AWS 계정에서 git history 복구 → `terraform apply` 한 방으로 동일 인프라 재현 가능 |
+
+발표 시 설명: "프로덕션 환경에선 IaC가 표준이고 우리도 그렇게 작성했지만, 학생 계정 SCP 제약(IAM Access Key + CloudShell + IAM Role 생성 모두 차단)으로 실 apply 불가능 → ClickOps로 데모. 코드는 졸업 후 개인 계정에서 그대로 재현 가능."
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
