@@ -6,34 +6,20 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.0"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.6"
-    }
   }
 }
 
-# 학생 계정 PIVOT —
+# 학생 계정(gachon-30) PIVOT —
 #   - Default VPC 강제 → custom subnet group 미생성, RDS 모듈 default subnet group 사용
 #   - publicly_accessible = true 강제 (학생 계정 SCP)
 #   - 보안 보강: SG inbound 5432 source = EC2 SG IDs only + parameter group rds.force_ssl=1
 #   - db.t3.micro 강제 (db.t4g.micro arm64 미가용)
 #   - 샌드박스 템플릿 → Single-AZ만 가능
-
-resource "random_password" "admin" {
-  length           = 32
-  special          = true
-  override_special = "!#$%&*()-_=+[]{}<>?"
-}
-
-resource "aws_secretsmanager_secret_version" "admin_password" {
-  secret_id     = var.admin_password_secret_id
-  secret_string = random_password.admin.result
-
-  lifecycle {
-    ignore_changes = [secret_string]
-  }
-}
+#
+# Master password — RDS-managed (manage_master_user_password=true)
+#   - RDS가 자동으로 Secrets Manager secret 생성 + 회전 가능
+#   - random_password + secret_version 패턴 제거 (tfstate 평문 노출 방지)
+#   - IAM 정책은 module.rds.db_instance_master_user_secret 참조
 
 # Parameter group — TLS만 허용 (publicly_accessible=true 보안 보강)
 resource "aws_db_parameter_group" "force_ssl" {
@@ -74,12 +60,10 @@ module "rds" {
   db_name  = var.db_name
   username = var.username
 
-  # terraform-aws-modules/rds v7+: password 인자 제거 → password_wo (write-only ephemeral) 사용.
-  # password_wo는 Terraform 1.11+ ephemeral 필드라 tfstate에 저장되지 않음 → 보안 개선.
-  # password_wo_version은 비밀번호 변경 트리거 (값 increment 시 RDS update).
-  manage_master_user_password = false
-  password_wo                 = random_password.admin.result
-  password_wo_version         = 1
+  # RDS-managed master password — Secrets Manager secret을 RDS가 자동 생성/관리.
+  # AWS-managed KMS key(`alias/aws/secretsmanager`) 자동 사용.
+  # tfstate에 평문 비밀번호 노출 0 (random_password 자원 미사용).
+  manage_master_user_password = true
 
   # 학생 계정 강제: publicly_accessible = true
   publicly_accessible    = true
@@ -92,7 +76,6 @@ module "rds" {
   db_subnet_group_name   = var.db_subnet_group_name # 보통 "default"
 
   # Custom parameter group 적용 — force_ssl=1
-  # v7에서 use_identifier_prefix 변수 제거됨 (default false 자동 적용 — 우리 의도와 일치)
   parameter_group_name      = aws_db_parameter_group.force_ssl.name
   create_db_parameter_group = false
 
@@ -101,9 +84,8 @@ module "rds" {
   maintenance_window       = "Sun:18:00-Sun:19:00"
   delete_automated_backups = !var.deletion_protection
 
-  deletion_protection = var.deletion_protection
-  skip_final_snapshot = var.skip_final_snapshot
-  # v7: final_snapshot_identifier → final_snapshot_identifier_prefix (suffix는 모듈이 자동 timestamp 추가)
+  deletion_protection              = var.deletion_protection
+  skip_final_snapshot              = var.skip_final_snapshot
   final_snapshot_identifier_prefix = var.identifier
 
   auto_minor_version_upgrade = true

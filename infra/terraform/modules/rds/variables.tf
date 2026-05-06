@@ -62,11 +62,6 @@ variable "username" {
   default     = "tracker_admin"
 }
 
-variable "admin_password_secret_id" {
-  description = "Secrets Manager Secret ID where master password should be stored."
-  type        = string
-}
-
 variable "backup_retention_period" {
   description = "Automated backup retention days."
   type        = number

@@ -28,3 +28,13 @@ output "subnet_group_name" {
   description = "DB subnet group name (학생 계정 PIVOT — Default VPC subnet group 'default' 그대로 사용, custom subnet group 미생성)."
   value       = var.db_subnet_group_name
 }
+
+output "master_user_secret_arn" {
+  description = <<-EOT
+    RDS-managed master user secret ARN (Secrets Manager).
+    manage_master_user_password=true 옵션이 RDS가 자동 생성한 secret의 ARN.
+    Detection / API EC2 IAM Role의 GetSecretValue 권한을 본 ARN으로 한정.
+    구조: arn:aws:secretsmanager:{region}:{account}:secret:rds!cluster-{id}-...
+  EOT
+  value       = try(module.rds.db_instance_master_user_secret[0].secret_arn, null)
+}

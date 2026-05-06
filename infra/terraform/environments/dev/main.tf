@@ -59,35 +59,24 @@ module "s3_archive" {
 }
 
 ##
-# 5) IAM (EC2 Roles only — GitHub OIDC + GHA Role은 PIVOT 정리로 제거)
-##
-module "iam" {
-  source = "../../modules/iam"
-
-  name_prefix           = var.name_prefix
-  archive_bucket_arn    = module.s3_archive.bucket_arn
-  detection_secret_arns = module.secrets.detection_secret_arns
-  api_secret_arns       = module.secrets.api_secret_arns
-
-  tags = local.common_tags
-}
-
-##
-# 6) RDS — db.t3.micro, publicly_accessible=true(학생 계정 강제),
+# 5) RDS — RDS-managed master password (Secrets Manager 자동 생성)
+#    db.t3.micro, publicly_accessible=true(학생 계정 강제),
 #    Default VPC subnet group, parameter group rds.force_ssl=1
 ##
 module "rds" {
   source = "../../modules/rds"
 
-  identifier               = var.name_prefix
-  engine_version           = "16.13"
-  major_engine_version     = "16"
-  parameter_group_family   = "postgres16"
-  instance_class           = "db.t3.micro" # 학생 계정 4종 한정 — db.t4g.micro arm64 미가용
-  allocated_storage        = 20
-  db_name                  = "tracker"
-  username                 = "tracker_admin"
-  admin_password_secret_id = module.secrets.rds_admin_password_secret_id
+  identifier             = var.name_prefix
+  engine_version         = "16.13"
+  major_engine_version   = "16"
+  parameter_group_family = "postgres16"
+  instance_class         = "db.t3.micro" # 학생 계정 4종 한정 — db.t4g.micro arm64 미가용
+  allocated_storage      = 20
+  db_name                = "tracker"
+  username               = "tracker_admin"
+
+  # manage_master_user_password=true (모듈 내부 default) → RDS가 자동으로
+  # Secrets Manager secret 생성 + 비밀번호 관리. tfstate에 평문 비밀번호 노출 0.
 
   db_subnet_group_name = "default" # Default VPC
 
@@ -96,6 +85,30 @@ module "rds" {
   skip_final_snapshot     = true  # dev
 
   security_group_id = module.security_groups.rds_sg_id
+
+  tags = local.common_tags
+}
+
+##
+# 6) IAM (EC2 Roles only — GitHub OIDC + GHA Role은 PIVOT 정리로 제거)
+#    Detection/API EC2가 읽어야 할 secret ARN 명시:
+#      - detection: varco_api_key (Translation/LLM) + RDS-managed master secret
+#      - api: RDS-managed master secret
+##
+module "iam" {
+  source = "../../modules/iam"
+
+  name_prefix        = var.name_prefix
+  archive_bucket_arn = module.s3_archive.bucket_arn
+
+  detection_secret_arns = [
+    module.secrets.varco_api_key_secret_arn,
+    module.rds.master_user_secret_arn,
+  ]
+
+  api_secret_arns = [
+    module.rds.master_user_secret_arn,
+  ]
 
   tags = local.common_tags
 }
