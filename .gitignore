@@ -82,31 +82,3 @@ id_ed25519.pub
 
 # Claude agents
 .agents/
-
-# ──────────────────────────────────────────────────────────────────────────
-# Terraform (Story 5.3)
-# ──────────────────────────────────────────────────────────────────────────
-**/.terraform/
-# .terraform.lock.hcl은 commit 권장 (best practice — provider 버전 일관성 보장)
-*.tfstate
-*.tfstate.*
-*.tfplan
-plan.txt
-crash.log
-crash.*.log
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
-.terraformrc
-terraform.rc
-# tfvars: example만 commit, 실제 값은 제외
-infra/terraform/**/terraform.tfvars
-infra/terraform/**/*.auto.tfvars
-infra/terraform/**/*.auto.tfvars.json
-!infra/terraform/**/terraform.tfvars.example
-
-# CI / security 도구 출력
-results.sarif
-checkov-report.*
-tflint-report.*

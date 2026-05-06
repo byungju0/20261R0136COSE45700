@@ -10,7 +10,6 @@
 # 인프라 (Story 5.x) — @gitjay3
 # ─────────────────────────────────────────────────────────────
 /infra/                       @gitjay3
-/infra/terraform/             @gitjay3
 /infra/DATA_POLICY.md         @gitjay3
 
 # ─────────────────────────────────────────────────────────────
@@ -18,10 +17,6 @@
 # ─────────────────────────────────────────────────────────────
 /.github/                     @gitjay3
 /.github/workflows/           @gitjay3
-/.pre-commit-config.yaml      @gitjay3
-/.tflint.hcl                  @gitjay3
-/.checkov.yml                 @gitjay3
-/.terraform-docs.yml          @gitjay3
 
 # ─────────────────────────────────────────────────────────────
 # 프론트엔드 (Epic 4 frontend) — @gitjay3
