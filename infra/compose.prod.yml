@@ -98,9 +98,12 @@ services:
     env_file: /opt/app/.env
     environment:
       SERVICE_NAME: api
-      # secret-shim이 /run/secrets/db_password → DB_PASSWORD env로 export 후
-      # Spring datasource 키에 매핑.
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-changeme}
+      # 시크릿(DB_PASSWORD)은 /run/secrets/db_password 마운트 → secret-shim이
+      # 컨테이너 안에서 DB_PASSWORD env로 export. application.properties는
+      # ${DB_PASSWORD}를 직접 읽도록 구성되어 있다 (AC #12 — env 직접 주입 금지).
+      # ⚠ compose `environment:`로 SPRING_DATASOURCE_PASSWORD를 주입하지 말 것:
+      #    compose interpolation은 호스트 셸 env에서 평가되며, /opt/app/.env는
+      #    의도적으로 DB_PASSWORD를 포함하지 않으므로 default 문자열로 떨어진다.
       # 16GB 환경 → JVM heap 1.5~2GB로 충분. G1GC 기본 사용.
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75"
     secrets:
@@ -123,7 +126,8 @@ services:
       - "80:80"
     networks:
       - tracker-net
-    mem_limit: 128m
+    # nginx-alpine + Vite 번들 워커 burst 시 OOM-kill 방지를 위해 256m로 상향.
+    mem_limit: 256m
 
 secrets:
   varco_api_key:
