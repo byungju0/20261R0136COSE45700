@@ -41,9 +41,13 @@ jobs:
           RESULTS: ${{ toJSON(needs) }}
         run: |
           set -euo pipefail
-          echo "$RESULTS"
-          # Fail unless every needs.<job>.result == "success".
-          if echo "$RESULTS" | grep -E '"result":[[:space:]]*"(failure|cancelled|skipped)"' >/dev/null; then
+          # 결과(.result)만 추출해서 로그 — 향후 reusable workflow가 outputs로
+          # 민감정보를 노출하더라도 aggregator 로그가 그대로 dump하지 않도록.
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          # Whitelist: 모든 needs.<job>.result == "success"여야만 통과.
+          # blacklist 방식은 새로운 result type(action_required 등)이나 빈 result를
+          # 무심코 통과시키는 footgun이라 jq -e all() 로 명시적 단언.
+          if ! echo "$RESULTS" | jq -e 'all(.[]; .result == "success")' >/dev/null; then
             echo "::error::One or more subsystem lint-test jobs did not succeed."
             exit 1
           fi
