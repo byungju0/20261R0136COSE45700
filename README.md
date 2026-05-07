@@ -20,10 +20,10 @@
 - [로컬 셋업](#로컬-셋업)
 - [빠른 검증](#빠른-검증)
 - [서브시스템별 구현 현황](#서브시스템별-구현-현황)
-  - [crawler (Epic 2 — 완료)](#crawler-epic-2--완료)
-  - [detection (Epic 3 — 진행 중)](#detection-epic-3--진행-중)
-  - [api (Epic 4 — 백엔드 4-1--4-2-done--4-3-진행-중)](#api-epic-4--백엔드-4-1--4-2-done--4-3-진행-중)
-  - [dashboard (Epic 4 — 완료)](#dashboard-epic-4--완료)
+  - [crawler (Epic 2)](#crawler-epic-2)
+  - [detection (Epic 3)](#detection-epic-3)
+  - [api (Epic 4 백엔드)](#api-epic-4-백엔드)
+  - [dashboard (Epic 4 프론트엔드)](#dashboard-epic-4-프론트엔드)
 - [Redis DB 구성](#redis-db-구성)
 - [CI/CD](#cicd)
 - [스프린트 현황](#스프린트-현황)
@@ -60,14 +60,17 @@ flowchart LR
 
 ```
 .
-├── crawler/          # Python — crawl4ai 기반 웹 크롤링 + 전처리 (APScheduler + Redis)
-├── detection/        # Python — VARCO Translation/LLM 기반 AI 탐지 파이프라인
-├── api/              # Java Spring Boot 3.5 — REST API (PostgreSQL + Flyway)
-├── dashboard/        # React + Vite + TypeScript — 운영자 대시보드
+├── crawler/          # Python — crawl4ai 크롤링 + 전처리 + Dockerfile (Story 5.2)
+├── detection/        # Python — VARCO Translation/LLM AI 탐지 + Dockerfile (Story 5.2)
+├── api/              # Java Spring Boot 3.5 — REST API (PG + Flyway) + Dockerfile (Story 5.2)
+├── dashboard/        # React 19 + Vite 8 — 운영자 대시보드 + Dockerfile (Story 5.2)
 ├── shared/           # Python 공유 모듈 (CorrelationId, CrawlEvent, VarcoInterface 등)
-├── infra/            # 로컬: Docker Compose (Redis + PostgreSQL) + Prometheus + Grafana
+├── infra/            # 로컬 docker-compose.yml (Redis+PG) + production compose.prod.yml
+│                       + docker-secret-shim.sh + grafana/prometheus placeholder (5.1 예정)
+├── docs/             # ci-setup.md (Branch protection) + deployment.md (자동 배포 runbook)
 ├── tests/            # 크로스 컴포넌트 테스트 (fixtures/e2e/performance/chaos)
-└── .github/workflows/  # CI/CD 워크플로우 4종 (crawler/detection/api/dashboard)
+└── .github/workflows/  # 6 워크플로우: crawler/detection/api/dashboard (path-filtered)
+                          + ci.yml (aggregator) + deploy.yml (GHCR + EC2 SSH)
 ```
 
 ## 사전 요구사항
@@ -119,10 +122,10 @@ cd dashboard && npm install && cd ..
 
 ```bash
 # crawler (단위 테스트)
-cd crawler && ../.venv/bin/python -m pytest tests/unit/ -q; cd ..
+cd crawler && .venv/bin/python -m pytest tests/unit/ -q; cd ..
 
 # detection (단위 테스트 — 외부 네트워크/실제 Redis 불필요)
-cd detection && ../.venv/bin/python -m pytest tests/unit/ -q; cd ..
+cd detection && .venv/bin/python -m pytest tests/unit/ -q; cd ..
 
 # api
 cd api && ./gradlew build; cd ..
@@ -135,49 +138,61 @@ cd dashboard && npm run build; cd ..
 
 ## 서브시스템별 구현 현황
 
-### crawler (Epic 2 — 완료)
+### crawler (Epic 2)
+
+**Status:** done — 2-1~2-5 모두 머지 완료 (코드 리뷰 14+19 patch 적용, 통합 81+56 tests PASS)
 
 | 모듈 | 설명 |
 |------|------|
 | `src/crawl4ai_crawler.py` | crawl4ai 기반 크롤러 (Chromium headless, stealth 모드) |
-| `src/sites/registry.py` | SiteConfig 레지스트리 (52pojie, inven_maple, inven_lineage_classic 등) |
-| `src/preprocessor/` | 언어 감지 → 키워드 필터 → 중복 제거(SHA-256 Redis) → 직렬화 |
+| `src/sites/registry.py` | SiteConfig 레지스트리 (8 사이트: 52pojie / inven_maple / inven_lineage_classic / PTT / Dcard / tieba / NGA / tailstar) |
+| `src/preprocessor/` | 언어 감지(`langdetect`) → 중복 제거(`posts:dedup` Redis SHA-256 SET) → 직렬화 (키워드 필터는 commit `17d88ed` 비활성화) |
 | `src/queue/redis_publisher.py` | RedisPublisher — `posts:queue` (DB0) LPUSH |
 | `src/s3_uploader.py` | S3Uploader — 원본 HTML + 이미지 아카이브 |
 | `src/scheduler/` | APScheduler AsyncIOScheduler + TriggerListener(`crawl:trigger`) |
+| `Dockerfile` | Story 5.2 — `python:3.11-slim` + Playwright Chromium + tini + secret-shim, `pgrep` 헬스체크 |
 
-### detection (Epic 3 — 진행 중)
+### detection (Epic 3)
+
+**Status:** in-progress (mockup 단계 완료, VARCO 실 API 명세 대기). 단위+통합 32 tests PASS (fakeredis[lua] + MagicMock + VarcoMock).
 
 | 모듈 | 설명 | 상태 |
 |------|------|------|
-| `src/consumer/` | Redis 큐 소비자 + Watchdog | 완료 |
-| `src/pipeline/translate.py` | VARCO Translation API 연동 (토큰 버킷 rate limit, DB2) | 리뷰 |
-| `src/pipeline/llm_classifier.py` | VARCO LLM 분류 + RetryHandler (exponential backoff 3회) | 리뷰 |
-| `src/pipeline/detection_pipeline.py` | 번역 → 분류 → RDS 저장 오케스트레이션 | 리뷰 |
-| `src/mocks/varco_mock.py` | VARCO Mock 서버 (로컬/테스트 환경) | 완료 |
-| RDS 저장 (Story 3-4) | 탐지 결과 PostgreSQL 저장 | 예정 |
+| `src/consumer/` | Redis 큐 소비자 (BRPOPLPUSH) + Watchdog (stale → re-queue / DLQ / corrupt-DLQ) | done |
+| `src/pipeline/translate.py` | VARCO Translation API (zh-CN/zh-TW → ko, ko 패스스루) + 토큰 버킷 rate limit (Redis DB2 Lua atomic) | review (mockup) |
+| `src/pipeline/llm_classifier.py` | VARCO LLM 분류 + RetryHandler (exponential backoff 1s/2s/4s, 4회 실패 시 DLQ) | review (mockup) |
+| `src/pipeline/detection_pipeline.py` | 번역 → 분류 → RDS 저장 오케스트레이션 | review (mockup) |
+| `src/mocks/varco_mock.py` | VARCO Mock 서버 (4 모드: clean / illegal / rate_limited / timeout) | done |
+| RDS 저장 (Story 3-4) | 탐지 결과 PostgreSQL 저장 (`(post_id, model_version)` UNIQUE 멱등성) | backlog |
+| `Dockerfile` | Story 5.2 — `python:3.11-slim` + tini + secret-shim, `pgrep` 헬스체크 | done |
 
-### api (Epic 4 — 백엔드 4-1 / 4-2 done · 4-3 진행 중)
+### api (Epic 4 백엔드)
+
+**Status:** Story 4-1 / 4-2 done · Story 4-3 PR #27 진행 중
 
 | 항목 | 설명 |
 |------|------|
 | Spring Boot 3.5 + PostgreSQL | JPA + Flyway (V1~V4 마이그레이션 자동 적용) |
-| `GET /api/detections` | 탐지 목록 조회 (페이지네이션 + 필터) — Story 4-1 done |
-| `GET /api/detections/{id}` | 탐지 상세 조회 — Story 4-2 done |
-| `POST /api/crawl/trigger` | 수동 크롤링 트리거 (Redis pub/sub) — Story 4-2 done |
-| `GET /api/stats` | 통계 (오늘 / 주간 / 월간 + 분포) — Story 4-3 PR #27 진행 중 |
+| `GET /api/detections` | 탐지 목록 조회 (페이지네이션 + 필터, `confidence >= 0.70` 자동 적용, `confidence DESC` 정렬) — Story 4-1 done |
+| `GET /api/detections/{id}` | 탐지 상세 조회 (RFC 9457 ProblemDetail + `errorCode: "DETECTION_NOT_FOUND"`) — Story 4-2 done |
+| `POST /api/crawl/trigger` | 수동 크롤링 트리거 (Redis pub/sub `crawl:trigger` publish) — Story 4-2 done |
+| `GET /api/stats` | 통계 (오늘 / 주간 / 월간 + 사이트·유형·언어 분포) — Story 4-3 backlog (PR #27) |
 | Swagger UI | `/swagger-ui.html` 에서 API 문서 확인 |
+| `Dockerfile` | Story 5.2 — multi-stage `eclipse-temurin:21-jdk-noble` builder → `21-jre-noble` runtime, `/actuator/health` curl 헬스체크 |
 
-### dashboard (Epic 4 — 완료)
+### dashboard (Epic 4 프론트엔드)
+
+**Status:** done (5/5 페이지) — 디자인 시스템 v10 overhaul (PR #9, 24 patch) 완료
 
 | 페이지/기능 | 설명 |
 |------------|------|
 | Dashboard (`/`) | 탐지 현황 요약 + 차트 2종 |
-| Detection List (`/detections`) | 목록 + 필터 + 키보드 네비게이션 (j/k/enter) |
+| Detection List (`/detections`) | 목록 + 필터 + 키보드 네비게이션 (j/k/enter/o/c/esc/g+t/g+d/g+l/g+s) |
 | Detection Detail (`/detections/:id`) | 원문·번역문 이중 패널 (BilingualPanel) + 신뢰도 배지 |
 | Stats (`/stats`) | 주간/월간 추이 LineChart + 사이트별 BarChart + 유형별 PieChart |
-| 디자인 시스템 | Tailwind v4 + shadcn/ui + NC AI 브랜드 토큰 (WCAG AA) |
-| MSW Mock | 백엔드 미완성 엔드포인트 대체 (개발/테스트용) |
+| 디자인 시스템 | Tailwind v4 + shadcn/ui + NC AI 브랜드 토큰 (WCAG AA 2-tier) |
+| MSW v2 Mock | 백엔드 미완성 엔드포인트 대체 (개발/테스트용) |
+| `Dockerfile` | Story 5.2 — multi-stage `node:20.19-alpine` builder → `nginx:1.27-alpine` runtime, `/healthz` 응답 |
 
 ## Redis DB 구성
 
