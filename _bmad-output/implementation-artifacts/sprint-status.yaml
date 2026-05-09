@@ -1,5 +1,7 @@
 # generated: 2026-04-27
 # last_updated: 2026-05-09
+# AI-11 완료: 2026-05-09 — architecture.md Spring Boot 3.4.x → 3.5.0 수정 (헤더·bootVersion·스펙 테이블 3곳).
+# CP-2 프론트-백엔드 통합 검증 완료: 2026-05-09 — VITE_API_BASE_URL=http://localhost:8080/api, MSW 비활성(VITE_API_BASE_URL 지정 시 skip 조건 추가), 대시보드·탐지목록·통계 3개 화면 실제 API 렌더링 확인. DB 데이터 없음(빈 상태 정상).
 # CP-1 백엔드 로컬 통합 검증 완료: 2026-05-09 — GET /api/detections(200), GET /api/stats(200), GET /api/stats?period=weekly(200 7일 zero-fill), POST /api/crawl/trigger(200 triggered). Redis DB3 cache:detections:stats + cache:detections:stats:weekly 생성 확인. PostgreSQL 16.13 + Flyway V4 up-to-date.
 # Sprint planning 갱신: 2026-05-09 — epic-1/2/4 all stories done → epic status done 상향. CP-2(프론트-백 통합 검증) 남음. 트랙 A: 3-2/3-3 코드 리뷰, 3-4/3-5 스토리 생성. 트랙 B: ClickOps AWS 인프라, 5-1/5-2 스토리 생성. AI-11: architecture.md Spring Boot 3.4.x → 3.5.0 수정.
 # Story 4-3 code review completed: 2026-05-06 (status: review → done, 5 patches applied: DTO field contract, period validation/cache key guard, zero-filled trend, fixed request date/transaction snapshot, REDIS_CACHE_DB env wiring; 24 tests PASS)
