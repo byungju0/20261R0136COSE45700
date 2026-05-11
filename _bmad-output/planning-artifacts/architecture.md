@@ -176,7 +176,7 @@ npm install @tanstack/react-query axios recharts \
 - EC2 인스턴스 사이징: Crawler / Detection / API 모두 **t3.medium x86_64** (2vCPU/4GB) — 학생 계정 SCP가 t3.{nano,micro,small,medium} 4종으로 한정, Graviton(arm64) 미가용
 - RDS: **PostgreSQL 18.3 / db.t4g.micro** Single-AZ + automated backup 7일 (2026-05-11 사용자 콘솔 launch 확인 — RDS Graviton(arm64)은 EC2 SCP와 별개로 학생 계정에서 가용. 이전 architecture.md/기획서가 "db.t4g.micro arm64 미가용"으로 기록한 것은 1차 PIVOT 시 잘못된 가정. PG 18.3은 학생 SCP가 16/17 노출 안 해 18.3-R1로 강제됨). Flyway 10 + PG 18.3 호환성은 첫 배포 시 실행 로그로 검증 (deferred-work 첫 항목)
 - EC2 접근: SSM Session Manager (SSH 키 미사용, 외부 22번 차단) — 단, EC2에 attach할 IAM Role을 학생이 신규 생성 불가 → 학교 사전 생성 Role(예: `LabRole`)에 `AmazonSSMManagedInstanceCore` 정책이 포함되어야 가능
-- RDS 네트워크: 학생 계정 SCP가 `publicly_accessible=true` 강제 → SG inbound 5432 source = {detection-sg, api-sg} 한정 + parameter group `rds.force_ssl=1`로 평문 접속 차단 (3중 가드)
+- RDS 네트워크: 학생 계정 SCP가 `publicly_accessible=true` 강제 → SG inbound 5432 source = `tracker-prod-sg`(단일 EC2 SG) 한정 + parameter group `rds.force_ssl=1`로 평문 접속 차단. 3차 PIVOT(2026-05-09 단일 EC2 회귀)로 detection-sg/api-sg 분리 가정 obsolete — 단일 SG 하나만으로 동일 효과
 - S3 트래픽: VPC Gateway Endpoint **미생성** (학생 계정 라우트 테이블 수정 권한 불확실) — IGW 경유, 동일 region 내라 비용 영향 미미
 - 보안 baseline: **모두 학교 default 정책 의존** — EBS encryption / VPC Flow Logs / CloudTrail / KMS CMK / AWS Budgets 모두 학생 계정 권한 부족 가정으로 미생성. 학교 organization trail 활성 여부는 별도 확인 필요
 

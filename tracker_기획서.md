@@ -434,7 +434,7 @@ flowchart TD
 | AI (VARCO) | **BERT [TBD]**, VARCO LLM, Translation, Vision | 2차 필터(미정) + 다국어 번역 + 불법 분류 + 이미지 탐지 |
 | 클라우드 | AWS **단일 EC2 t3.xlarge x86_64 16GB** (3차 PIVOT 회귀), S3 (VPC Gateway Endpoint 미생성 — IGW 경유), RDS **PostgreSQL 18.3 db.t4g.micro arm64 Single-AZ**, publicly_accessible=true + SG/force_ssl 보강 | 4개 서비스 + Redis 단일 호스트 docker compose 공존 + 데이터 저장. EC2 SCP는 Graviton 차단되나 RDS Graviton은 가용. 인스턴스 사이징 근거는 2.1.1.a 참조 |
 | 인프라 관리 | **콘솔 ClickOps** (2026-05-06 PIVOT) | 본래 Terraform IaC 채택. 학생 IAM 자격증명 통로 0개(IAM Access Key 차단 + CloudShell deny + IAM Role 생성 deny)로 apply 불가능 → ClickOps 전환. Terraform 코드는 git history(`b7e24d3`, `bd172d9`) 보존, 졸업 후 개인 계정에서 1회 apply 재현 가능. 자세한 사유는 본 문서 2.1 인프라 박스 + Story 5.3 PIVOT 참조 |
-| EC2 접근·운영 | **AWS SSM Session Manager** (SSH 키 미사용) | EC2에 IAM Instance Role + SSM agent(Amazon Linux 2023 기본 포함). 외부 22번 포트 차단(NFR7), SSH 키 분배·회수 운영 부담 0, 세션 로그 자동 기록(NFR9 충족) |
+| EC2 접근·운영 | **SSH `.pem` only** (Ubuntu 24.04) | 2026-05-06 Story 5-2 PIVOT — 학생 IAM이 SSM Session Manager / EC2 Instance Connect / IAM Role 생성 모두 차단으로 SSM 통로 봉인. 22번 인바운드 `0.0.0.0/0` + ed25519 + fail2ban 3 layer defense-in-depth. host fingerprint verification은 운영 단순화 trade-off로 미적용 (NFR9 세션 로그는 EC2 측 `/var/log/auth.log` + journalctl로 대체) |
 | 보안 baseline | S3 퍼블릭 차단 (콘솔에서 4종 활성) + RDS `rds.force_ssl=1` + 보안 그룹 inbound 최소화 + SSE-S3(AES256) 자동 암호화 | EBS encryption by default / VPC Flow Logs / CloudTrail / KMS CMK / AWS Budgets / AWS Config / SecurityHub / GuardDuty 모두 학생 계정 권한 부족으로 미생성 — 학교 organization trail + region default 정책 의존 (활성 여부는 학교 측 별도 확인 필요). 발견 시 콘솔 1회 enable로 보강 |
 | API 서버 | Java Spring | REST API, 자동 Swagger 문서화 |
 | 대시보드 | React | 탐지 현황·차트·게시글 목록 시각화 |
