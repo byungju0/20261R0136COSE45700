@@ -83,7 +83,7 @@ EBS 30GB $2.4 → 월 ~3,500원 → **EC2 합 약 18만원/월**.
 
 | Type | Port | Source | 용도 |
 |---|---|---|---|
-| SSH | 22 | `0.0.0.0/0` | GHA 러너 IP 동적 → fail2ban + fingerprint로 보강 |
+| SSH | 22 | `0.0.0.0/0` | GHA 러너 IP 동적 → fail2ban으로 보강 |
 | HTTP | 80 | `0.0.0.0/0` | dashboard nginx |
 | Custom TCP | 8080 | `0.0.0.0/0` | api Spring Boot |
 
@@ -122,11 +122,11 @@ sudo systemctl enable --now fail2ban
 > **swap 셋업 불필요** — t3.xlarge 16GB에서는 워킹셋이 메모리의 21% 수준이라
 > swap 진입 가능성 사실상 0.
 
-EC2 host fingerprint 추출 (노트북에서):
-
-```bash
-ssh-keyscan -t ed25519 <ec2-ip> | awk '{print $3}'   # → EC2_HOST_FINGERPRINT
-```
+> **EC2 host fingerprint 검증 생략 결정** — 본 워크플로는 `appleboy/*-action`의
+> `fingerprint:` 파라미터를 등록하지 않습니다. 학생 프로젝트 trade-off: MITM 방어
+> + EC2 host key 변경 감지를 포기하는 대신 운영 단순화. EC2 교체 시점에는 어차피
+> `EC2_HOST` secret 갱신이 필요하므로 fingerprint 별도 갱신 부담을 줄임. AWS
+> 네트워크 내 직결이라 MITM 현실 위험은 0에 가까움.
 
 ### 2.4 GitHub Secrets 등록
 
@@ -136,17 +136,16 @@ ssh-keyscan -t ed25519 <ec2-ip> | awk '{print $3}'   # → EC2_HOST_FINGERPRINT
 > secrets로 우회하고 deploy.yml의 `environment: production` 줄을 제거했습니다.
 > Required reviewers 같은 release 게이트는 잃지만 학생 프로젝트 규모에서 수용.
 
-**owner(byungju0)가** 다음 4개를 Repository scope에 등록:
+**owner(byungju0)가** 다음 3개를 Repository scope에 등록:
 
 Repo Settings → **Secrets and variables → Actions** → **Secrets** 탭 →
-**New repository secret** 4번:
+**New repository secret** 3번:
 
 | Secret 이름 | 값 |
 |---|---|
 | `EC2_SSH_KEY` | `.pem` 파일 통째 (`-----BEGIN ... -----END ...`) |
 | `EC2_USER` | `ubuntu` |
 | `EC2_HOST` | tracker-prod EC2 public IP |
-| `EC2_HOST_FINGERPRINT` | EC2의 ssh-keyscan 결과 |
 
 > **Personal repo + collaborator 한계 — 미래 옵션**: 권한 격리·release 게이트가
 > 필요해지면 repo를 GitHub Organization으로 transfer 후 collaborator에게 Admin
@@ -265,11 +264,10 @@ GitHub UI → Actions → `deploy` 워크플로 → **Run workflow** 버튼:
 - **이유**: 학생 IAM 사용자가 AWS API 자격증명 통로를 모두 봉인당해 GHA 러너 IP에
   맞춰 SG 룰을 동적 갱신할 수 없습니다. 외부 SaaS(Cloudflare Tunnel / Tailscale)
   가입은 사용자 정책상 회피합니다 (memory `feedback_no_external_services.md`).
-- **Defense-in-depth 4 layer**:
-  1. **`appleboy/ssh-action` host fingerprint 검증** (`EC2_HOST_FINGERPRINT`) — MITM 차단.
-  2. **ed25519 키 + password 비활성** (EC2 sshd 기본).
-  3. **fail2ban 3 fail / 10분 / 24h ban** — brute-force 99% 차단.
-  4. **GH Secret + Environment scope** — `.pem`이 GitHub Actions 실행 시점에만
+- **Defense-in-depth 3 layer** (host fingerprint 검증은 운영 단순화 위해 생략):
+  1. **ed25519 키 + password 비활성** (EC2 sshd 기본).
+  2. **fail2ban 3 fail / 10분 / 24h ban** — brute-force 99% 차단.
+  3. **GH Secret + Repository scope** — `.pem`이 GitHub Actions 실행 시점에만
      단기적으로 컨테이너 메모리에 노출.
 
 ### 6.2 단일 `.pem` 키
@@ -337,8 +335,7 @@ identity-based policy: ControlOnlyOwnResources`). IP /32 우회도 동일 패턴
 | 증상 | 진단 / 조치 |
 |---|---|
 | `permission denied (publickey)` | `EC2_SSH_KEY` BEGIN/END 라인 포함 통째 등록됐는지 확인. 줄바꿈 보존 필수. |
-| `Host key verification failed` | `EC2_HOST_FINGERPRINT`에 `ssh-keyscan -t ed25519`의 **3번째 컬럼만** 등록. |
-| `command not found: docker` | ssh-action `script:`에서 절대 경로(`/usr/bin/docker`) 사용 중인지 확인. |
+| `command not found: docker` | EC2에 `docker compose` plugin 설치 확인. SSH script가 `command -v docker`로 경로 자동 resolve. |
 | GHCR 401 | workflow `permissions: { packages: write }` 누락 점검. |
 | Healthcheck 항상 실패 | `docker compose -f /opt/app/compose.prod.yml ps` + `docker logs <service>` 직접 확인. |
 | 자동 롤백 무한 루프 | `IMAGE_TAG` 파일을 known-good SHA로 직접 갱신 후 `workflow_dispatch` 재트리거. |

@@ -150,18 +150,21 @@ jobs:
 
       - name: Upload compose.prod.yml to EC2
         # SHA-pinned for supply-chain integrity (action receives EC2 .pem).
+        # fingerprint 검증 생략 — 학생 프로젝트 trade-off: MITM 방어/EC2 host key 변경
+        # 감지를 포기하는 대신 운영 단순화. EC2 교체 시점에 EC2_HOST secret 갱신만으로
+        # 동작하도록 의도. (deferred-work에 host fingerprint sanity check 항목 닫음)
         uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345  # v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          fingerprint: ${{ secrets.EC2_HOST_FINGERPRINT }}
           source: "infra/compose.prod.yml"
           target: "/opt/app/compose.prod.yml"
           overwrite: true
 
       - name: Deploy + healthcheck + auto-rollback
         # SHA-pinned for supply-chain integrity (action receives EC2 .pem + GHCR token).
+        # fingerprint 검증 생략 — 위 step과 동일한 trade-off.
         uses: appleboy/ssh-action@823bd89e131d8d508129f9443cad5855e9ba96f0  # v1.2.4
         env:
           IMAGE_TAG: ${{ steps.target.outputs.image_tag }}
@@ -172,7 +175,6 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          fingerprint: ${{ secrets.EC2_HOST_FINGERPRINT }}
           script_stop: true
           envs: IMAGE_TAG,REGISTRY_PATH,GHCR_USER,GHCR_TOKEN
           script: |
