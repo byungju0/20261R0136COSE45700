@@ -174,7 +174,7 @@ npm install @tanstack/react-query axios recharts \
 - 데이터 갱신: TanStack Query 폴링 60초
 - 인프라 운영 모델: **콘솔 ClickOps** (2026-05-06 PIVOT — 학생 IAM 자격증명 통로 0개로 IaC 폐기, Story 5.3 결과 문서 참조). Terraform 코드는 git history(`b7e24d3`, `bd172d9`)에 보존
 - EC2 인스턴스 사이징: Crawler / Detection / API 모두 **t3.medium x86_64** (2vCPU/4GB) — 학생 계정 SCP가 t3.{nano,micro,small,medium} 4종으로 한정, Graviton(arm64) 미가용
-- RDS: PostgreSQL 16.13 / **db.t3.micro** Single-AZ + automated backup 7일 (학생 계정 SCP가 db.t4g.micro arm64 미가용)
+- RDS: **PostgreSQL 18.3 / db.t4g.micro** Single-AZ + automated backup 7일 (2026-05-11 사용자 콘솔 launch 확인 — RDS Graviton(arm64)은 EC2 SCP와 별개로 학생 계정에서 가용. 이전 architecture.md/기획서가 "db.t4g.micro arm64 미가용"으로 기록한 것은 1차 PIVOT 시 잘못된 가정. PG 18.3은 학생 SCP가 16/17 노출 안 해 18.3-R1로 강제됨). Flyway 10 + PG 18.3 호환성은 첫 배포 시 실행 로그로 검증 (deferred-work 첫 항목)
 - EC2 접근: SSM Session Manager (SSH 키 미사용, 외부 22번 차단) — 단, EC2에 attach할 IAM Role을 학생이 신규 생성 불가 → 학교 사전 생성 Role(예: `LabRole`)에 `AmazonSSMManagedInstanceCore` 정책이 포함되어야 가능
 - RDS 네트워크: 학생 계정 SCP가 `publicly_accessible=true` 강제 → SG inbound 5432 source = {detection-sg, api-sg} 한정 + parameter group `rds.force_ssl=1`로 평문 접속 차단 (3중 가드)
 - S3 트래픽: VPC Gateway Endpoint **미생성** (학생 계정 라우트 테이블 수정 권한 불확실) — IGW 경유, 동일 region 내라 비용 영향 미미
@@ -227,7 +227,7 @@ npm install @tanstack/react-query axios recharts \
 >
 > **아래 표 전체가 production 사양 historical record.** Terraform 관련 결정 (IaC 도구 / state 백엔드 / 모듈 사용 정책 / OIDC / CI 게이트 / pre-commit / terraform-docs)은 2026-05-06 ClickOps PIVOT으로 obsolete. EC2 사이징(r6g.large / t4g.medium / t4g.large)·Graviton(arm64) 채택·db.t4g.micro·VPC Gateway Endpoint·EBS encryption / VPC Flow Logs / CloudTrail / KMS CMK / AWS Budgets·Crawl4AI `max_session_permit=6~8` 등 모든 사양 결정도 학생 계정 SCP(인스턴스 4종 한정 + Graviton 미가용 + 보안 baseline 자원 권한 부족)로 1차 PIVOT(2026-05-04) 시점에 모두 다운그레이드됨.
 >
-> **실제 ClickOps 적용 사양**: EC2 모두 **t3.medium x86_64 4GB ×3** / RDS **db.t3.micro publicly_accessible=true**(SG inbound source 한정 + `rds.force_ssl=1` 보강) / Default VPC + IGW 경유 / EBS encryption·Flow Logs·CloudTrail·KMS CMK·Budgets·Endpoint **모두 미생성** / Crawl4AI `max_session_permit` 4GB 환경에서 2~3 보수적. 정확한 사양은 Story 5.3 결과 문서 + 기획서 2.1.1.a 참조. production 사양은 git history(`b7e24d3`, `bd172d9`)에 보존되어 학생 계정 사용 기간 종료 후 개인 계정에서 1회 apply로 재현 가능.
+> **실제 ClickOps 적용 사양 (2026-05-11 기준 최종)**: EC2 **단일 t3.xlarge x86_64 16GB** / RDS **db.t4g.micro arm64 PostgreSQL 18.3 publicly_accessible=true**(SG inbound source 한정 + `rds.force_ssl=1` 보강) / Default VPC + IGW 경유 / EBS encryption·Flow Logs·CloudTrail·KMS CMK·Budgets·Endpoint **모두 미생성** / Crawl4AI `max_session_permit` 보수적. 정확한 사양은 Story 5.3 결과 문서 + 기획서 2.1.1.a 참조. production 사양은 git history(`b7e24d3`, `bd172d9`)에 보존되어 학생 계정 사용 기간 종료 후 개인 계정에서 1회 apply로 재현 가능.
 >
 > **2026-05-06 추가 갱신 (region + EC2 접근 + Story 5.2 PIVOT)**:
 > - **Region `us-east-1` 확정** — 학생 계정 <student-iam-user>는 다른 region에서 자원 생성 거부 확인. 이전 ap-northeast-2 가정은 잘못된 가정.
