@@ -218,10 +218,13 @@ class CrawlScheduler:
 
     def _on_job_missed(self, event) -> None:
         _logger.warning(
-            "scheduler_job_missed: job_id=%s scheduled_run_time=%s",
-            event.job_id,
-            str(event.scheduled_run_time),
-            extra={"correlation_id": "", "service": _SERVICE_NAME},
+            "scheduler_job_missed",
+            extra={
+                "correlation_id": "",
+                "service": _SERVICE_NAME,
+                "job_id": event.job_id,
+                "scheduled_run_time": str(event.scheduled_run_time),
+            },
         )
 
     def setup_schedule(self) -> None:
