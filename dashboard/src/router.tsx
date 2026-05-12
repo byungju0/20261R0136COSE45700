@@ -1,10 +1,19 @@
+import { lazy } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { RootLayout } from './layouts/RootLayout';
 import { DashboardPage } from './pages/Dashboard';
-import { DetectionDetailPage } from './pages/DetectionDetail';
-import { DetectionListPage } from './pages/DetectionList';
-import { StatsPage } from './pages/Stats';
+
+// Dashboard는 첫 진입 LCP라 eager. 나머지는 lazy split — RootLayout의 Suspense가 fallback 책임.
+const DetectionListPage = lazy(() =>
+  import('./pages/DetectionList').then((m) => ({ default: m.DetectionListPage })),
+);
+const DetectionDetailPage = lazy(() =>
+  import('./pages/DetectionDetail').then((m) => ({ default: m.DetectionDetailPage })),
+);
+const StatsPage = lazy(() =>
+  import('./pages/Stats').then((m) => ({ default: m.StatsPage })),
+);
 
 export const router = createBrowserRouter([
   {

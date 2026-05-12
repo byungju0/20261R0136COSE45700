@@ -1,6 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import { apiClient } from './client';
 import { POLLING_QUERY_OPTIONS } from './queryDefaults';
+import { statsQueries } from './stats';
 import { detectionFilterToParams } from '@/lib/detectionFilter';
 import type {
   CrawlTriggerResponse,
@@ -8,8 +15,6 @@ import type {
   DetectionFilter,
   DetectionListResponse,
 } from '@/types/api';
-
-export const DETECTIONS_QUERY_KEY = 'detections' as const;
 
 async function fetchDetections(
   filter: DetectionFilter,
@@ -21,26 +26,43 @@ async function fetchDetections(
   return response.data;
 }
 
-export function useDetectionsQuery(filter: DetectionFilter) {
-  return useQuery({
-    queryKey: [DETECTIONS_QUERY_KEY, 'list', filter],
-    queryFn: () => fetchDetections(filter),
-    ...POLLING_QUERY_OPTIONS,
-    placeholderData: (prev) => prev,
-  });
-}
-
 async function fetchDetection(id: number): Promise<Detection> {
   const response = await apiClient.get<Detection>(`/detections/${id}`);
   return response.data;
 }
 
+/** TanStack Query v5 queryOptions 팩토리 — 키 일관성 + prefetch/setQueryData 용이. */
+export const detectionQueries = {
+  all: () => ['detections'] as const,
+  lists: () => [...detectionQueries.all(), 'list'] as const,
+  list: (filter: DetectionFilter) =>
+    queryOptions({
+      queryKey: [...detectionQueries.lists(), filter] as const,
+      queryFn: () => fetchDetections(filter),
+      ...POLLING_QUERY_OPTIONS,
+      placeholderData: (prev) => prev,
+    }),
+  details: () => [...detectionQueries.all(), 'detail'] as const,
+  detail: (id: number) =>
+    queryOptions({
+      queryKey: [...detectionQueries.details(), id] as const,
+      queryFn: () => fetchDetection(id),
+      staleTime: 60_000,
+    }),
+};
+
+export function useDetectionsQuery(filter: DetectionFilter) {
+  return useQuery(detectionQueries.list(filter));
+}
+
+export function useDetectionsSuspenseQuery(filter: DetectionFilter) {
+  return useSuspenseQuery(detectionQueries.list(filter));
+}
+
 export function useDetectionQuery(id: number | undefined) {
   return useQuery({
-    queryKey: [DETECTIONS_QUERY_KEY, 'detail', id],
-    queryFn: () => fetchDetection(id as number),
+    ...detectionQueries.detail(id ?? 0),
     enabled: id !== undefined && Number.isFinite(id),
-    staleTime: 60_000,
   });
 }
 
@@ -58,8 +80,8 @@ export function useCrawlTriggerMutation() {
     mutationFn: triggerCrawl,
     onSuccess: () => {
       // 트리거 후 목록·통계 stale 처리 → 다음 폴링에서 갱신
-      queryClient.invalidateQueries({ queryKey: [DETECTIONS_QUERY_KEY] });
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
+      queryClient.invalidateQueries({ queryKey: detectionQueries.all() });
+      queryClient.invalidateQueries({ queryKey: statsQueries.all() });
     },
   });
 }

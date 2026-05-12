@@ -4,8 +4,8 @@
  */
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -100,9 +100,9 @@ export function GlobalShortcutProvider({ children }: GlobalShortcutProviderProps
   const value = useMemo(() => ({ register }), [register]);
 
   return (
-    <ShortcutContext.Provider value={value}>
+    <ShortcutContext value={value}>
       {children}
-    </ShortcutContext.Provider>
+    </ShortcutContext>
   );
 }
 
@@ -113,7 +113,7 @@ export function GlobalShortcutProvider({ children }: GlobalShortcutProviderProps
  *          useShortcut('g+t', () => triggerCrawl())
  */
 export function useShortcut(key: string, handler: Handler): void {
-  const ctx = useContext(ShortcutContext);
+  const ctx = use(ShortcutContext);
   if (!ctx) {
     throw new Error('useShortcut must be used within a GlobalShortcutProvider');
   }
