@@ -3,8 +3,6 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
-// data-slot="kbd"는 tooltip.tsx selector(`has-data-[slot=kbd]:pr-1.5`,
-// `**:data-[slot=kbd]:rounded-sm` 등)와 연동되어 tooltip 안에서도 자동 동작.
 const kbdVariants = cva(
   "font-mono inline-flex items-center justify-center rounded text-xs",
   {
