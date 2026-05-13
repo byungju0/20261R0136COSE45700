@@ -1,9 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { queryOptions, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { POLLING_QUERY_OPTIONS } from './queryDefaults';
 import type { StatsPeriod, StatsResponse } from '@/types/api';
-
-export const STATS_QUERY_KEY = 'stats' as const;
 
 async function fetchStats(period?: StatsPeriod): Promise<StatsResponse> {
   const url = period ? `/stats?period=${period}` : '/stats';
@@ -11,10 +9,20 @@ async function fetchStats(period?: StatsPeriod): Promise<StatsResponse> {
   return response.data;
 }
 
+export const statsQueries = {
+  all: () => ['stats'] as const,
+  byPeriod: (period?: StatsPeriod) =>
+    queryOptions({
+      queryKey: [...statsQueries.all(), { period: period ?? null }] as const,
+      queryFn: () => fetchStats(period),
+      ...POLLING_QUERY_OPTIONS,
+    }),
+};
+
 export function useStatsQuery(period?: StatsPeriod) {
-  return useQuery({
-    queryKey: [STATS_QUERY_KEY, { period: period ?? null }],
-    queryFn: () => fetchStats(period),
-    ...POLLING_QUERY_OPTIONS,
-  });
+  return useQuery(statsQueries.byPeriod(period));
+}
+
+export function useStatsSuspenseQuery(period?: StatsPeriod) {
+  return useSuspenseQuery(statsQueries.byPeriod(period));
 }
