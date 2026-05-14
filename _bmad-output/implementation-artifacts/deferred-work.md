@@ -1,9 +1,28 @@
 # Deferred Work
 
+## Deferred from: Story 5-2 dev (2026-05-12 — USER 외부 종속성, Task 5 blocked)
+
+Task 5 [USER] `/opt/app/secrets/*` + `/opt/app/.env` 작성에 필요한 외부 종속성 4종이 손에 들어오기 전까지 Task 5 / 7 / 8 진행 불가. 첫 배포 자체가 시크릿 + 백엔드 컨테이너 startup 모두 의존:
+
+1. **VARCO API key** (`/opt/app/secrets/varco_api_key`) — Naver Cloud VARCO Translation/LLM API key 발급 필요. detection 컨테이너 사용. 누락 시 detection startup 실패 → healthcheck fail → 자동 롤백.
+2. **VARCO API base URL** (`VARCO_API_BASE_URL` in `/opt/app/.env`) — 팀에서 확정된 base URL 미수령. 누락 시 `https://varco.placeholder/v1` 같은 placeholder → DNS NXDOMAIN → translate/classify 100% fail → DLQ 폭증.
+3. **RDS endpoint + master password** — tracker-prod-db는 Available + `psql SELECT version()`은 통과했으나 `DB_HOST` (정확한 endpoint hostname) + `/opt/app/secrets/db_password` (master password)가 .env/시크릿 파일에 아직 미작성.
+4. **백엔드 api/detection 서비스 첫 배포 검증** (다른 팀원 담당 영역) — Spring Boot api + detection 컨테이너 build/GHCR push 후 EC2에서 startup 동작 검증 필요. Flyway V1~V4 migration 첫 실행 모니터링도 본 deferred 항목과 결합 (아래 Story 5-2 dev 2026-05-07 섹션 Flyway 호환성 참조).
+
+**진행 가능한 우회 작업 (외부 종속성 무관)**:
+- deploy.yml에 quality gate 3종 추가 (pre-deploy assertion + IMAGE_TAG fail loud + smoke test, +6 LOC) — 시크릿 무관 코드 변경
+- Task 6 [USER] dependabot 제거 commit — working tree 이미 제거, commit만 남음, 시크릿 무관
+
+**Blocked**: Task 5 / Task 7 (첫 배포) / Task 8 (자동 롤백 검증) 모두 시크릿 + 첫 배포 의존.
+
+**ADR**: 시크릿 관리 전략은 [docs/adr/0001-secret-management-strategy.md](../../docs/adr/0001-secret-management-strategy.md)에 옵션 A 채택 결정 기록 완료 (2026-05-12).
+
+---
+
 ## Deferred from: Story 5-2 dev (2026-05-07)
 
 - **Flyway 10 + PostgreSQL 18.3 호환성 검증** — Spring Boot 3.5 default Flyway 10.x는 PG 17까지 공식 지원. 학생 SCP가 RDS 엔진 16/17 노출 안 해 18.3 채택. V1~V4 migration이 표준 DDL이라 작동 가능성 높지만 첫 배포 시 Flyway 실행 로그 모니터링 필수. 실패 시 `api/build.gradle`에 `dependencies { implementation 'org.flywaydb:flyway-core:12.0.0' }` 식으로 Flyway 12.x 핀 추가 (5분 작업). [Story 5.2 4차 변경 노트 참조]
-- **architecture.md 사양 backport (Story 5-2 / 5-3 ClickOps 결과 반영)** — PostgreSQL 16.13 → 18.3, EC2 ×3 사양 → 단일 EC2 t3.xlarge 16GB, NAT/SSM Session Manager 라인 → SSH `.pem` only로 일괄 갱신 필요. 현재는 Story 5.2 PIVOT 박스에 보강 형태로만 명시 → 본 표 backport는 Story 5.2 review 통과 후 별도 PR.
+- ~~**architecture.md 사양 backport (Story 5-2 / 5-3 ClickOps 결과 반영)**~~ — **2026-05-11 RESOLVED (`chore/bmad-sprint-cleanup` PR)**: architecture.md Infrastructure & Deployment 섹션 + tracker_기획서.md 2.1.1.a 표 + 클라우드 표 모두 단일 EC2 t3.xlarge + PG 18.3 + SSH `.pem` only로 일괄 backport 완료. epics.md Story 5.3 AC 본문은 OBSOLETE 마커 강화(historical record 유지). epics.md Story 1.1 Spring Boot 3.4.x → 3.5.0 + docs/deployment.md L38 `environment: production` stale 표기 + Story 5-2 파일의 fingerprint 잔존 ref도 함께 정리.
 - **GH repo Organization transfer 검토** — 현재 byungju0 personal repo + collaborator는 admin/Environment 권한 부여 불가능(GitHub 구조적 제약). Required reviewers / Environment 격리 / fine-grain branch protection이 필요해지면 Organization 만들고 transfer 검토. 학생 기간 종료 시점에 결정.
 - **EC2 Public IP 고정 (EIP) 검토** — 현재 stop/start 시 Public IP 변경 → GH Secret `EC2_HOST` 갱신 필요. EIP allocation은 학생 SCP 권한 미확인. 운영 부담 측정 후 도입 결정.
 - **mem_limit 실측 후 튜닝** — compose.prod.yml의 mem_limit는 16GB 환경에 맞춘 보수적 hard cap(crawler 4G / api 2G / detection 1G / dashboard 128M, 합 ~7G). Story 5.4 부하 시점에 `docker stats` 실측 후 조정. 특히 crawler Playwright 동시 세션이 늘어나면 4G 너머로 가능.
@@ -78,7 +97,7 @@
 - **REVIEWED_FRACTION 0.25 mock 라벨링** [pages/Dashboard/index.tsx:13] — 진척도 25% 고정 mock. Stats API에 reviewed count 필드 추가 시 swap.
 - **Today timestamp 자정 롤오버** [pages/Dashboard/index.tsx:31] — `new Date()` 렌더 시점 1회 계산. TanStack Query refetch 시 갱신되지만 60s 폴링 사이에 자정 넘으면 표시 잔류. dataUpdatedAt + ticking state로 교체 필요.
 - **FreshnessIndicator/NewDetectionsBadge 제거 회귀** [layouts/Topbar.tsx, layouts/RootLayout.tsx] — 새 Topbar에 freshness 표시 + 수동 트리거 후 새 탐지 알림 없음. Hero 시스템 상태 줄에 dataUpdatedAt 연결 또는 컴포넌트 복원 결정 필요.
-- **3-column 레이아웃 모바일 breakpoint 부재** [layouts/RootLayout.tsx:20] — sidebar 240px + rail 240px 고정으로 ~600px 미만에서 main 압착. desktop-only 전제 명시 또는 < lg 에서 rail 드로어화 필요.
+- ~~**3-column 레이아웃 모바일 breakpoint 부재** [layouts/RootLayout.tsx:20] — sidebar 240px + rail 240px 고정으로 ~600px 미만에서 main 압착. desktop-only 전제 명시 또는 < lg 에서 rail 드로어화 필요.~~ **[해소 — Story 4.7 (2026-05-13) PIVOT]** Tailwind `md` 768px breakpoint 분기 + Sidebar 햄버거 → vaul drawer + DetectionList 카드 뷰 + FilterBar bottom Drawer 도입으로 해결.
 
 ## Deferred from: code review of 1-1-모노레포-구조-초기화-및-서브시스템-스캐폴딩 (2026-04-29)
 
@@ -171,3 +190,7 @@
 - **rds.force_ssl=1 parameter group** — RDS 콘솔에서 custom parameter group 만들고 적용해야 평문 접속 차단. ClickOps 절차에서 빠뜨리기 쉬움 — 데모 전 체크리스트.
 - **인스턴스 종료 후 비용 누수** — 학기 종료 후 EC2 stop이 아니라 terminate, RDS도 final snapshot 후 delete, S3도 비우고 delete. ClickOps는 자동 destroy가 없어 수동 정리 필수. 학교 사전 설정 budget 한도 초과 시 강제 종료될 수도 있음.
 - **재현 가능성을 위한 ClickOps 절차 문서화** — 콘솔에서 만든 자원의 정확한 설정값(EC2 AMI ID, SG 룰, RDS 파라미터 등)을 별도 markdown 문서로 캡처해두는 게 졸업 후 재현/발표 자료에 유리. `docs/clickops-runbook.md` 같은 형식으로 남기는 걸 권장.
+
+## Deferred from: code review of 5-1-prometheus-메트릭-수집-및-grafana-대시보드-구성 (2026-05-12)
+
+- **APScheduler max_instances skip 관측 부재** [crawler/src/scheduler/crawl_scheduler.py:229] — Story 5.1은 `EVENT_JOB_MISSED` 기반 misfire 로깅을 추가했지만, 긴 크롤 실행으로 `max_instances=1` 제한에 걸리는 skip은 별도 이벤트(`EVENT_JOB_MAX_INSTANCES`) 경로라 이번 리스너로는 잡히지 않을 수 있다. 기존 스케줄러 동작의 운영 가시성 개선 항목으로 후속 모니터링 스토리에서 검토.

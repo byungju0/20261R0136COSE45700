@@ -10,5 +10,3 @@ export const KNOWN_SOURCES = [
   '52pojie.cn',
   'bbs.nga.cn',
 ] as const;
-
-export type KnownSource = (typeof KNOWN_SOURCES)[number];

@@ -89,7 +89,7 @@ Tracker는 NC AI 게임 보안 담당자를 위한 자동화된 불법 프로그
 - AI: VARCO Translation(중국어·번체) + VARCO LLM(불법 분류)
 - 백엔드: Java Spring REST API + Redis MQ + RDS PostgreSQL
 - 대시보드: 탐지 목록 / 상세 / 통계 화면
-- 인프라: AWS EC2 ×3, S3, RDS, Redis (t3.medium 기준)
+- 인프라: AWS EC2 ×3, S3, RDS, Redis (t3.medium 기준) <!-- 2026-04-24 PRD freeze 시점 사양. 실 deployment는 2026-05-09 3차 PIVOT으로 **단일 t3.xlarge 16GB**로 회귀 — architecture.md / 기획서 2.1.1.a 참조 -->
 
 ### Growth Features (Post-MVP)
 
@@ -230,7 +230,7 @@ Tracker는 세 개의 독립 레이어로 구성된 복합 시스템이다. 각 
 - **렌더링 방식:** SPA (Single Page Application)
 - **지원 브라우저:** Chrome / Edge 최신 2버전 (내부 운영 도구)
 - **SEO:** 불필요 — 인증 없이 외부 노출되지 않는 내부 도구
-- **반응형:** 데스크톱 우선 (1280px 이상). 모바일 대응은 Growth 단계
+- **반응형:** 데스크톱 1280px+ 우선 / 모바일 < 768px 지원(Tailwind `md` breakpoint 기준 햄버거 drawer + 카드 뷰 + bottom Drawer 필터). 태블릿 768~1023px은 best-effort. **2026-05-13 PIVOT** — 외부 운영자의 모바일 긴급 조치(원본 URL 점프 + 수동 크롤링 트리거) 요구로 Growth 단계 항목을 MVP로 끌어옴 (Story 4.7)
 - **접근성:** 기본 수준 (내부 도구, WCAG 준수 필수 아님)
 - **인증:** MVP에서 제외. 내부망(VPC 보안 그룹) + AWS 네트워크 레벨 접근 제어로 대체. 애플리케이션 인증(SSO 등)은 Growth 단계
 - **핵심 화면 4종:**
@@ -265,6 +265,8 @@ Tracker는 세 개의 독립 레이어로 구성된 복합 시스템이다. 각 
 | 크롤링 완료 → 대시보드 반영 | ≤ 5분 |
 
 ### Infrastructure (AWS)
+
+> ⚠️ **2026-04-24 PRD freeze 시점 사양.** 실 deployment는 2026-05-04~2026-05-09 학생 IAM SCP 제약 발견으로 다단계 PIVOT 적용 (1차: 3대 t3.medium x86_64 강제 다운그레이드, 2차: 2 EC2 분리 시도, 3차 최종: 단일 t3.xlarge 16GB 회귀). 최신 사양은 [architecture.md](architecture.md) Infrastructure & Deployment 섹션 + [tracker_기획서.md](../../tracker_기획서.md) 2.1.1.a 참조.
 
 | 리소스 | 사양 | 역할 |
 |--------|------|------|
@@ -318,7 +320,7 @@ Tracker는 세 개의 독립 레이어로 구성된 복합 시스템이다. 각 
 - 프록시 업그레이드: NodeMaven (~$50~80/월, GFW 우회)
 - 애플리케이션 레벨 인증 (SSO 또는 ID/PW)
 - 실시간 알림 (신뢰도 ≥ 0.95 탐지 시 Slack/이메일)
-- 모바일 반응형 대시보드
+- ~~모바일 반응형 대시보드~~ → **MVP로 편입 (2026-05-13 PIVOT, Story 4.7)**
 
 **Phase 3 — Expansion:**
 - NC 타이틀 전체 적용 (리니지·블소·쓰론앤리버티 키워드·프롬프트 커스터마이징)

@@ -1,8 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useDetectionsQuery } from '@/api/detections';
+import { ChevronLeft, ChevronRight, SlidersHorizontal, X } from 'lucide-react';
+import { useDetectionsSuspenseQuery } from '@/api/detections';
 import { Button } from '@/components/ui/button';
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer';
 import {
   Select,
   SelectContent,
@@ -10,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Kbd } from '@/components/ui/kbd';
 import {
   Table,
   TableBody,
@@ -18,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DetectionCard } from '@/components/tracker/DetectionCard';
 import { DetectionRow } from '@/components/tracker/DetectionRow';
 import { EmptyState } from '@/components/tracker/EmptyState';
 import { LANG_OPTIONS, TYPE_OPTIONS } from '@/components/tracker/labels';
@@ -28,6 +39,7 @@ import {
 } from '@/lib/detectionFilter';
 import { useShortcut } from '@/lib/shortcuts';
 import { KNOWN_SOURCES } from '@/lib/sources';
+import { cn } from '@/lib/utils';
 import type { DetectionFilter, DetectionType, Language } from '@/types/api';
 
 const PAGE_SIZE = 20;
@@ -48,11 +60,11 @@ export function DetectionListPage() {
     return { date, site, type, lang, since, page, size: PAGE_SIZE };
   }, [searchParams]);
 
-  const { data, isLoading, error } = useDetectionsQuery(filter);
-  if (error) throw error;
+  const { data } = useDetectionsSuspenseQuery(filter);
+  const [isPending, startTransition] = useTransition();
 
   const [focusedIdx, setFocusedIdx] = useState(0);
-  const [visited, setVisited] = useState<Set<number>>(new Set());
+  const [visited, setVisited] = useState<Set<number>>(() => new Set());
 
   // "previous state in render" — filter ref가 바뀌면 focus 리셋 (effect 회피).
   const [prevFilter, setPrevFilter] = useState(filter);
@@ -61,8 +73,8 @@ export function DetectionListPage() {
     setFocusedIdx(0);
   }
 
-  const items = data?.content ?? [];
-  const totalPages = data ? Math.ceil(data.totalElements / data.size) : 1;
+  const items = data.content;
+  const totalPages = Math.ceil(data.totalElements / data.size);
 
   const updateFilter = (next: Partial<DetectionFilter>, resetPage = true) => {
     const merged: DetectionFilter = {
@@ -71,11 +83,16 @@ export function DetectionListPage() {
       page: resetPage ? 0 : (next.page ?? filter.page),
       size: undefined,
     };
-    setSearchParams(detectionFilterToParams(merged));
+    // useTransition으로 wrap — 새 데이터 fetch 동안 이전 화면 유지 (placeholderData 대체).
+    startTransition(() => {
+      setSearchParams(detectionFilterToParams(merged));
+    });
   };
 
   const resetFilters = () => {
-    setSearchParams(new URLSearchParams());
+    startTransition(() => {
+      setSearchParams(new URLSearchParams());
+    });
   };
 
   const openDetail = (id: number) => {
@@ -87,7 +104,6 @@ export function DetectionListPage() {
     navigate(`/detections/${id}`);
   };
 
-  // Keyboard navigation
   useShortcut('j', () => {
     setFocusedIdx((idx) => Math.min(idx + 1, Math.max(items.length - 1, 0)));
   });
@@ -103,6 +119,7 @@ export function DetectionListPage() {
 
   return (
     <PageContainer className="gap-4">
+      <title>탐지 목록 · Tracker</title>
       <header className="flex items-baseline justify-between">
         <h1
           className="text-foreground font-semibold tracking-tight"
@@ -110,13 +127,11 @@ export function DetectionListPage() {
         >
           탐지 목록
         </h1>
-        {data && (
-          <span className="text-muted-foreground text-xs">
-            {hasActiveFilter
-              ? `필터 적용: ${data.totalElements}건`
-              : `${data.totalElements}건`}
-          </span>
-        )}
+        <span className="text-muted-foreground text-xs">
+          {hasActiveFilter
+            ? `필터 적용: ${data.totalElements}건`
+            : `${data.totalElements}건`}
+        </span>
       </header>
 
       <FilterBar
@@ -126,13 +141,15 @@ export function DetectionListPage() {
         active={hasActiveFilter}
       />
 
-      {isLoading ? (
-        <div className="flex flex-col gap-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : items.length === 0 ? (
+      <div
+        // useTransition pending 동안 살짝 dim — 이전 데이터가 보이지만 fetch 진행 중임 표시.
+        aria-busy={isPending || undefined}
+        className={cn(
+          'flex flex-col gap-4 transition-opacity',
+          isPending && 'opacity-60',
+        )}
+      >
+      {items.length === 0 ? (
         hasActiveFilter ? (
           <EmptyState
             variant="filter-empty"
@@ -153,7 +170,18 @@ export function DetectionListPage() {
         )
       ) : (
         <>
-          <div className="bg-card overflow-hidden rounded-lg border">
+          {/* Mobile (< md) — 카드 리스트, 키보드 네비 미적용 (터치 우선) */}
+          <div className="bg-card overflow-hidden rounded-lg border md:hidden">
+            {items.map((item) => (
+              <DetectionCard
+                key={item.id}
+                detection={item}
+                visited={visited.has(item.id)}
+                onSelect={() => openDetail(item.id)}
+              />
+            ))}
+          </div>
+          <div className="bg-card hidden overflow-hidden rounded-lg border md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -187,13 +215,13 @@ export function DetectionListPage() {
             />
           )}
 
-          <p className="text-muted-foreground text-xs">
-            팁: <kbd className="bg-muted rounded px-1 font-mono">j</kbd>/
-            <kbd className="bg-muted rounded px-1 font-mono">k</kbd> 다음/이전 ·{' '}
-            <kbd className="bg-muted rounded px-1 font-mono">Enter</kbd> 상세
+          <p className="text-muted-foreground hidden text-xs md:block">
+            팁: <Kbd size="xs">j</Kbd>/<Kbd size="xs">k</Kbd> 다음/이전 ·{' '}
+            <Kbd size="xs">Enter</Kbd> 상세 · <Kbd size="xs">?</Kbd> 전체 단축키
           </p>
         </>
       )}
+      </div>
     </PageContainer>
   );
 }
@@ -207,11 +235,20 @@ interface FilterBarProps {
 
 const ALL_VALUE = '__all__';
 
-function FilterBar({ filter, onChange, onReset, active }: FilterBarProps) {
+function FilterBar(props: FilterBarProps) {
+  return (
+    <>
+      <MobileFilterBar {...props} />
+      <DesktopFilterBar {...props} />
+    </>
+  );
+}
+
+function DesktopFilterBar({ filter, onChange, onReset, active }: FilterBarProps) {
   const sites = KNOWN_SOURCES;
 
   return (
-    <div className="bg-card flex flex-wrap items-center gap-2 rounded-lg border p-3">
+    <div className="bg-card hidden flex-wrap items-center gap-2 rounded-lg border p-3 md:flex">
       <Select
         value={filter.site ?? ALL_VALUE}
         onValueChange={(v) =>
@@ -293,6 +330,169 @@ function FilterBar({ filter, onChange, onReset, active }: FilterBarProps) {
   );
 }
 
+function FilterChip({
+  label,
+  onClear,
+}: {
+  label: string;
+  onClear: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClear}
+      aria-label={`필터 해제: ${label}`}
+      className="bg-bg-overlay border-border-1 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium"
+      style={{ color: 'var(--fg-2)' }}
+    >
+      {label}
+      <X className="size-3" aria-hidden />
+    </button>
+  );
+}
+
+function MobileFilterBar({ filter, onChange, onReset, active }: FilterBarProps) {
+  const sites = KNOWN_SOURCES;
+  const typeLabel = TYPE_OPTIONS.find((t) => t.value === filter.type)?.label;
+  const langLabel = LANG_OPTIONS.find((l) => l.value === filter.lang)?.label;
+
+  return (
+    <div className="bg-card flex flex-wrap items-center gap-2 rounded-lg border p-3 md:hidden">
+      <Drawer>
+        <DrawerTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-1.5">
+            <SlidersHorizontal className="size-3.5" aria-hidden />
+            필터
+            {active && (
+              <span
+                className="ml-1 inline-flex size-4 items-center justify-center rounded-full text-[10px] font-semibold"
+                style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+              >
+                {[filter.site, filter.type, filter.lang].filter(Boolean).length}
+              </span>
+            )}
+          </Button>
+        </DrawerTrigger>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerHeader>
+            <DrawerTitle>필터</DrawerTitle>
+            <DrawerDescription className="sr-only">
+              사이트·유형·언어를 선택하고 완료를 누르세요.
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="flex flex-col gap-3 px-4 pb-2">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-fg-3 text-xs font-medium uppercase tracking-wide">
+                사이트
+              </span>
+              <Select
+                value={filter.site ?? ALL_VALUE}
+                onValueChange={(v) =>
+                  onChange({ site: v === ALL_VALUE ? undefined : v })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="모든 사이트" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_VALUE}>모든 사이트</SelectItem>
+                  {sites.map((s) => (
+                    <SelectItem key={s} value={s} className="font-mono text-xs">
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-fg-3 text-xs font-medium uppercase tracking-wide">
+                유형
+              </span>
+              <Select
+                value={filter.type ?? ALL_VALUE}
+                onValueChange={(v) =>
+                  onChange({
+                    type: v === ALL_VALUE ? undefined : (v as DetectionType),
+                  })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="모든 유형" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_VALUE}>모든 유형</SelectItem>
+                  {TYPE_OPTIONS.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-fg-3 text-xs font-medium uppercase tracking-wide">
+                언어
+              </span>
+              <Select
+                value={filter.lang ?? ALL_VALUE}
+                onValueChange={(v) =>
+                  onChange({
+                    lang: v === ALL_VALUE ? undefined : (v as Language),
+                  })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="모든 언어" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_VALUE}>모든 언어</SelectItem>
+                  {LANG_OPTIONS.map((l) => (
+                    <SelectItem key={l.value} value={l.value}>
+                      {l.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          </div>
+          <DrawerFooter>
+            <Button onClick={onReset} variant="outline" disabled={!active}>
+              초기화
+            </Button>
+            <DrawerClose asChild>
+              <Button>완료</Button>
+            </DrawerClose>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
+      {filter.site && (
+        <FilterChip
+          label={filter.site}
+          onClear={() => onChange({ site: undefined })}
+        />
+      )}
+      {filter.type && typeLabel && (
+        <FilterChip
+          label={typeLabel}
+          onClear={() => onChange({ type: undefined })}
+        />
+      )}
+      {filter.lang && langLabel && (
+        <FilterChip
+          label={langLabel}
+          onClear={() => onChange({ lang: undefined })}
+        />
+      )}
+      {filter.since && (
+        <span className="bg-warning/10 text-warning rounded-full px-2.5 py-1 text-xs font-medium">
+          새로 들어온 탐지만
+        </span>
+      )}
+    </div>
+  );
+}
+
 interface PaginationProps {
   page: number;
   totalPages: number;
@@ -307,21 +507,24 @@ function Pagination({ page, totalPages, onPage }: PaginationProps) {
         size="sm"
         disabled={page === 0}
         onClick={() => onPage(page - 1)}
-        className="gap-1"
+        className="min-h-[40px] min-w-[88px] gap-1 md:min-h-0 md:min-w-0"
       >
         <ChevronLeft className="size-3.5" aria-hidden />
         이전
       </Button>
-      <span>
+      <span className="hidden md:inline">
         <span className="font-mono">{page + 1}</span> /{' '}
         <span className="font-mono">{totalPages}</span>
+      </span>
+      <span className="text-fg-3 font-mono text-xs tabular-nums md:hidden">
+        {page + 1} / {totalPages}
       </span>
       <Button
         variant="outline"
         size="sm"
         disabled={page >= totalPages - 1}
         onClick={() => onPage(page + 1)}
-        className="gap-1"
+        className="min-h-[40px] min-w-[88px] gap-1 md:min-h-0 md:min-w-0"
       >
         다음
         <ChevronRight className="size-3.5" aria-hidden />
