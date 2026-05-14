@@ -7,16 +7,16 @@
 # corepack 활성화로 packageManager 필드의 pnpm 버전 자동 활성. (Node 16.9+)
 FROM node:22-alpine AS builder
 
-# corepack: signature 검증 이슈 회피 차원에서 latest로 업그레이드 후 prepare/activate.
-# packageManager 필드 (package.json) 값 그대로 pnpm 버전 pinned.
-RUN corepack enable && corepack prepare --activate
-
-WORKDIR /app
-
 # pnpm fetch 방식이 아니라 표준 install: lockfile + workspace 설정만 먼저 복사해
 # 의존성 레이어 캐시. pnpm-workspace.yaml은 overrides 적용에 필수 (pnpm 11부터
 # package.json#pnpm.overrides 무시 — pnpm/pnpm#11536).
+WORKDIR /app
 COPY dashboard/package.json dashboard/pnpm-lock.yaml dashboard/pnpm-workspace.yaml ./
+
+# corepack은 packageManager 필드(pnpm@11.1.1)를 읽어 자동 활성.
+# package.json을 먼저 COPY해야 `corepack prepare --activate`가 현재 디렉토리에서
+# packageManager 필드를 찾을 수 있다. 그렇지 않으면 ERR_NO_PROJECT_FOUND.
+RUN corepack enable && corepack prepare --activate
 RUN pnpm install --frozen-lockfile
 
 COPY dashboard/ ./
