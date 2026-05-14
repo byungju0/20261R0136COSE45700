@@ -110,8 +110,8 @@ cp detection/.env.example detection/.env   # VARCO_API_KEY 등 값 입력
 # 3) api 셋업 (Spring Boot — Gradle이 의존성 자동 다운로드, Flyway가 스키마 자동 생성)
 cd api && ./gradlew build; cd ..
 
-# 4) dashboard 셋업 (Vite + React)
-cd dashboard && npm install && cd ..
+# 4) dashboard 셋업 (Vite + React, 패키지 매니저 pnpm — Node 16.9+의 corepack으로 자동 활성)
+cd dashboard && corepack enable && pnpm install && cd ..
 ```
 
 각 서브시스템의 가상환경/의존성 캐시(`.venv/`, `node_modules/`, `.gradle/`, `build/`)는 git에서 제외되며, 위 명령으로 각 개발자 머신에서 동일하게 재현됩니다.
@@ -132,14 +132,14 @@ cd api && ./gradlew build; cd ..
 # 출력: BUILD SUCCESSFUL
 
 # dashboard
-cd dashboard && npm run build; cd ..
+cd dashboard && pnpm build; cd ..
 # 출력: ✓ built in <time>
 
 # dashboard 단위 테스트 (Vitest + RTL + MSW)
-cd dashboard && npm test; cd ..
+cd dashboard && pnpm test; cd ..
 
 # dashboard e2e (Playwright — Pixel 7 모바일 viewport 포함)
-cd dashboard && npx playwright install --with-deps && npm run e2e; cd ..
+cd dashboard && pnpm exec playwright install --with-deps && pnpm e2e; cd ..
 ```
 
 ## 서브시스템별 구현 현황
