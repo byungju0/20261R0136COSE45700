@@ -4,20 +4,28 @@
 
 # ---------- builder ----------
 # Node 22 LTS — @eslint-react/* (require >=22) 호환. CI(dashboard.yml)도 22로 통일.
+# corepack 활성화로 packageManager 필드의 pnpm 버전 자동 활성. (Node 16.9+)
 FROM node:22-alpine AS builder
+
+# corepack: signature 검증 이슈 회피 차원에서 latest로 업그레이드 후 prepare/activate.
+# packageManager 필드 (package.json) 값 그대로 pnpm 버전 pinned.
+RUN corepack enable && corepack prepare --activate
 
 WORKDIR /app
 
-COPY dashboard/package.json dashboard/package-lock.json ./
-RUN npm ci
+# pnpm fetch 방식이 아니라 표준 install: lockfile + workspace 설정만 먼저 복사해
+# 의존성 레이어 캐시. pnpm-workspace.yaml은 overrides 적용에 필수 (pnpm 11부터
+# package.json#pnpm.overrides 무시 — pnpm/pnpm#11536).
+COPY dashboard/package.json dashboard/pnpm-lock.yaml dashboard/pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 
 COPY dashboard/ ./
 # VITE_USE_MOCK=true 빌드 시 MSW worker가 dist/에 보존되고 main.tsx가 prod에서도 MSW 활성.
 # 백엔드(VARCO/RDS) 셋업 전 frontend-only 데모용 (compose.demo.yml + deploy-demo.yml).
 ARG VITE_USE_MOCK=false
 ENV VITE_USE_MOCK=$VITE_USE_MOCK
-# `npm run build` = `tsc -b && vite build` (typecheck + bundle).
-RUN npm run build
+# `pnpm build` = `tsc -b && vite build` (typecheck + bundle).
+RUN pnpm build
 
 # ---------- runtime ----------
 FROM nginx:1.27-alpine AS runtime
