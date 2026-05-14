@@ -63,5 +63,10 @@ RUN printf '%s\n' \
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 EXPOSE 80
+# `localhost`는 Docker v26+ /etc/hosts에서 IPv6(::1)와 IPv4(127.0.0.1) 양쪽으로
+# 매핑되고, BusyBox wget은 getaddrinfo의 첫 주소(::1)만 시도하고 fallback이 없다.
+# nginx `listen 80`은 IPv4(0.0.0.0)만 바인딩 → ::1로의 connect는 Connection refused
+# → healthcheck가 항상 실패한다 (외부 트래픽은 정상이나 healthcheck만 비대칭 실패).
+# 127.0.0.1로 명시해 IPv4 강제. 참조: nginx trac #2400, alpine/aports #10937.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD wget -qO- http://localhost/healthz >/dev/null || exit 1
+    CMD wget -qO- http://127.0.0.1/healthz >/dev/null || exit 1
