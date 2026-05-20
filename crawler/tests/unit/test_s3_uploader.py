@@ -17,6 +17,7 @@ from shared.models.crawl_event import CrawlEvent
 # Helper
 # ---------------------------------------------------------------------------
 
+
 def _make_uploader(bucket: str = "test-bucket") -> tuple[S3Uploader, MagicMock]:
     """boto3를 mock한 S3Uploader 인스턴스 반환."""
     with patch("crawler.src.s3_uploader.boto3") as mock_boto3:

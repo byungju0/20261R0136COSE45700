@@ -7,6 +7,7 @@ from crawler.src.preprocessor import content_validator as cv
 # 공통 가드
 # ──────────────────────────────────────────────
 
+
 class TestGenericGuard:
     def test_empty_returns_empty_kind(self):
         v = cv.validate("inven_maple", "", "")
