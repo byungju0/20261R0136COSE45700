@@ -18,7 +18,7 @@ classification:
 
 ## Executive Summary
 
-Tracker는 NC AI 게임 보안 담당자를 위한 자동화된 불법 프로그램 유포 탐지 시스템이다. 한국·중국·대만 커뮤니티 사이트(최대 6개)를 1시간 주기로 자동 크롤링하고, NC AI의 VARCO Translation → LLM → Vision 파이프라인을 통해 다국어 텍스트 및 이미지 우회 게시글을 탐지하여 React 대시보드에 목록화한다. 담당자는 대시보드에서 탐지 게시글 목록을 확인하고 원본 URL로 즉시 이동해 조치를 취한다.
+Tracker는 NC AI 게임 보안 담당자를 위한 자동화된 불법 프로그램 유포 탐지 시스템이다. 한국·중국·대만 커뮤니티 게시판 7개 부모 사이트 + 검색엔진 8개 (총 **15개 데이터 소스**) 를 1시간 주기로 자동 크롤링하고, NC AI의 VARCO Translation → LLM → Vision 파이프라인을 통해 다국어 텍스트 및 이미지 우회 게시글을 탐지하여 React 대시보드에 목록화한다. 담당자는 대시보드에서 탐지 게시글 목록을 확인하고 원본 URL로 즉시 이동해 조치를 취한다. <!-- 2026-05-19 Epic 2 PIVOT 반영: "최대 6개" → 게시판 7 부모(인벤·PTT·Dcard·Bahamut + 52pojie·tieba·nga) + 검색 8(github/reddit/bing/duckduckgo_cn/baidu/sogou/bilibili/facebook) = 15. 자세한 우선순위 표는 Product Scope → 데이터 소스 섹션 참조. -->
 
 **문제:** 게임 치트 경제 규모 약 85억 달러(Intorqa, 2026) 수준으로 성장하며, PC 게이머 80%가 치터를 경험한다. 기존 anti-piracy 솔루션(MUSO, Irdeto)은 영상·음악 저작권 침해에 특화되어 있고, 게임 불법 프로그램 유포 채널(한·중 커뮤니티)을 실시간으로 커버하는 솔루션은 공백 상태다. 수동 모니터링으로는 다국어 대응과 이미지 우회 탐지가 불가능하다.
 
@@ -80,9 +80,48 @@ Tracker는 NC AI 게임 보안 담당자를 위한 자동화된 불법 프로그
 
 ## Product Scope
 
+### 데이터 소스 (2026-05-19 PIVOT 반영)
+
+총 **15개 데이터 소스** = 게시판형 7 부모 사이트 + 검색엔진형 8 사이트. 게시판형은 `SiteConfig` 추상화 (board → post 1-hop), 검색엔진형은 `SearchEngineConfig` 추상화 (query → SERP → 외부 링크 2-hop) 로 처리. 출력은 모두 `CrawlEvent` 동일 — 다운스트림 탐지 파이프라인 무영향.
+
+#### 게시판형 (Stories 2-1~2-7, 코드 정착 완료 — 142 PASS)
+
+| 우선순위 | 부모 사이트 | 지역 | 구현 실수 | 비고 |
+|---|---|---|---|---|
+| P0 | **Bahamut** | 대만 | 8 NC 게임 보드 (Lineage / Lineage M / Lineage W / Lineage Classic / Aion / Aion2 / BNS / TL) | 모두 순수 NC. `title_keywords` 불필요. 최우선 데이터 소스 |
+| P0 | **인벤 (Lineage Classic)** | 한국 | 1 보드 | NC 직접 관련 |
+| P1 | **PTT** | 대만 | 2 보드 (Lineage 순수 NC + Mobile-game 혼합) | 18세 인증 게이트 자동 통과 |
+| P1 | **Dcard** | 대만 | 2 보드 (game / online — 모두 혼합) | React SPA, `title_keywords=_NC_GAME_KEYWORDS` 필터 |
+| P2 | **인벤 (메이플)** | 한국 | 1 보드 | NEXON 비교군 — 운영 valid 검증용 |
+| P3 | **52pojie** | 중국 | 1 보드 | Cloudflare 보호, stealth + zh-CN UA 통과. 프록시 옵션 |
+| P3 (proxy 선결) | **tieba** | 중국 | 2 보드 (游戏外挂 / 手游辅助) | **중국 residential proxy 필수** — 한국 IP HTTP 403 |
+| P3 (proxy 선결) | **NGA** | 중국 | 1 보드 (fid=489) | **중국 residential proxy 필수** — 한국 IP HTTP 403 |
+
+#### 검색엔진형 (Stories 2-8~2-12, Epic 3 완료 후 착수 — backlog)
+
+| 우선순위 | 사이트 | 지역 | 도전 난이도 | 비고 |
+|---|---|---|---|---|
+| P0 (추상화 검증) | **github** | 글로벌 | 낮음 | `SearchEngineConfig` 첫 도전, 추상화 모델 검증용 |
+| P1 | **reddit** | 글로벌 | 낮음 | 글로벌 NC 정보 유통 |
+| P1 | **bing** | 글로벌 (중국 콘텐츠 우회) | 중간 | 중국 콘텐츠의 글로벌 유통 우회 링크 |
+| P1 | **duckduckgo_cn** | 글로벌 | 낮음 | 추적 회피 검색엔진, CN 쿼리 특화 |
+| P2 | **facebook** (via Bing) | 글로벌 | 높음 | Facebook 자체 검색 API 제약 → Bing `site:facebook.com` 우회 |
+| P3 (proxy 선결) | **baidu** | 중국 | 높음 | 중국 1위 검색엔진, 중국 residential proxy 필수 |
+| P3 (proxy 선결) | **sogou** | 중국 | 높음 | 중국 검색엔진, 중국 residential proxy 필수 |
+| P3 (proxy 선결) | **bilibili** | 중국 | 높음 | 영상 메타데이터 + 설명. 중국 residential proxy 필수 |
+
+#### 진행 트랙
+
+1. **트랙 A (즉시 운영 가능)**: P0~P1 게시판형 (Bahamut + 인벤 + PTT + Dcard) — 외부 contract 호환 검증 완료, 142 PASS
+2. **트랙 B (proxy 선결 필요)**: P3 게시판형 (tieba, NGA, 52pojie 일부) + P3 검색엔진형 (baidu, sogou, bilibili) — **중국 residential proxy 인프라 트랙** 완료 후 활성화
+3. **트랙 C (Epic 3 완료 후)**: P0~P2 검색엔진형 (github, reddit, bing, duckduckgo_cn, facebook) — `SearchEngineConfig` 추상화 신설 (Story 2-8) 부터 시작
+4. **트랙 D (Known issues — 단발 fix)**: `dcard_online` `wait_for=css:article` 타임아웃, `ptt_mobile_game`·`dcard /f/game` 페이지네이션 또는 deprioritize
+
+---
+
 ### MVP - Minimum Viable Product
 
-크롤링 → 전처리(HTML 파싱·언어 감지·중복 해시·키워드 필터) → VARCO Translation → VARCO LLM 분류 → RDS 저장 → React 대시보드 표시까지의 End-to-End 텍스트 탐지 파이프라인을 자동 실행한다.
+크롤링 → 전처리(언어 감지·URL 중복·content 중복·content_validator 품질 가드·serialize) → VARCO Translation → VARCO LLM 분류 → RDS 저장 → React 대시보드 표시까지의 End-to-End 텍스트 탐지 파이프라인을 자동 실행한다. <!-- 2026-05-19 PIVOT: 전처리 단계 갱신 (html_parser·keyword_filter 제거, content_validator + url_dedup_checker + serializer 신규). 본문 키워드 매칭은 VARCO LLM (Epic 3) 로 위임. -->
 
 - 크롤링: Playwright + stealth, ProxyBroker(개발), APScheduler 1시간 주기
 - 전처리: Crawler EC2 인라인 수행 (옵션 A)
@@ -95,7 +134,8 @@ Tracker는 NC AI 게임 보안 담당자를 위한 자동화된 불법 프로그
 
 - **VARCO Vision 이미지 탐지:** 이미지로만 구성된 텍스트 우회 게시글 탐지. 5~7주차 VARCO LLM F1 실측 후 AI 담당자(일드매) 결정.
 - **BERT 2차 필터:** VARCO LLM 호출 전 위험도 사전 스코어링. Vision과 함께 Detection EC2 업사이징(t3.large 또는 g4dn) 검토.
-- **프록시 업그레이드:** ProxyBroker → NodeMaven(중국 IP 전문, ~$50~80/월). 중국 사이트 차단율 실측 후 도입 시점 결정.
+- **프록시 업그레이드:** ProxyBroker → NodeMaven(중국 IP 전문, ~$50~80/월). 중국 사이트 차단율 실측 후 도입 시점 결정. <!-- 2026-05-19 PIVOT: tieba·NGA·52pojie 한국 IP HTTP 403 확인, 검색엔진 baidu·sogou·bilibili도 동일 패턴 예상. 본 트랙 활성화는 중국 residential proxy 선결 필요. -->
+- **검색엔진형 데이터 소스 (Stories 2-8~2-12):** github, reddit, bing, duckduckgo_cn, facebook (글로벌) + baidu, sogou, bilibili (중국 proxy 선결) — `SearchEngineConfig` 추상화 신설 후 단계적 활성화. Epic 3 (탐지 파이프라인) 안정화 후 착수. 자세한 우선순위는 `### 데이터 소스` 섹션 표 참조.
 - **수동 크롤링 트리거:** `POST /crawl/trigger` — 관리자 즉시 실행 API.
 - **실시간 알림:** 신뢰도 0.95 이상 고위험 탐지 시 Slack·이메일 즉시 알림.
 
