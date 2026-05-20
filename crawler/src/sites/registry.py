@@ -17,8 +17,26 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from dataclasses import dataclass, field  # noqa: F401
+
+
+def _brightdata_cn_proxy() -> dict | None:
+    """Bright Data residential proxy (CN zone).
+
+    환경변수 미설정 시 None — proxy 미사용으로 동작.
+    PoC 단계에서만 사용. 운영 결정 후 별도 시크릿 매니저로 이전 권장.
+    """
+    username = os.environ.get("BRIGHTDATA_CN_USERNAME")
+    password = os.environ.get("BRIGHTDATA_CN_PASSWORD")
+    if not (username and password):
+        return None
+    return {
+        "server": "http://brd.superproxy.io:33335",
+        "username": username,
+        "password": password,
+    }
 
 
 @dataclass
@@ -313,11 +331,14 @@ SITES: dict[str, SiteConfig] = {
         # 약한 anti-bot 회피용 — IP 차단엔 무력하지만 시도는 해봄.
         simulate_user=True,
         user_agent_mode="random",
-        # proxy={"server": "http://CHINA_IP:PORT"},  # ← 활성화 시 주석 해제
-        enabled=True,
+        proxy=_brightdata_cn_proxy(),
+        enabled=False,
         note=(
-            "중국 본토 IP 거의 필수. simulate_user + UA 회전으론 IP 차단을 못 뚫음. "
-            "위 proxy 슬롯에 중국 residential 프록시 주입 후 정상 동작 기대."
+            "Bright Data CN residential proxy PoC (2026-05-20) 결과: 프록시 라우팅·중국 IP "
+            "발급은 정상이나 Baidu anti-bot 이 stealth Chromium까지 차단 (HTTP 403). "
+            "추가로 민감 키워드(游戏外挂 등) 검색은 로그인 필수인데 계정 가입에 "
+            "중국 본토 휴대폰 + 실명 인증 요구 → IP·계정 이중 장벽으로 out-of-scope. "
+            "BRIGHTDATA_CN_USERNAME/PASSWORD 환경변수 + enabled=True 로 재활성 가능."
         ),
     ),
 
@@ -338,10 +359,14 @@ SITES: dict[str, SiteConfig] = {
         # NGA 는 HTTP 403 anti-bot 으로 막힘. UA 회전 + simulate_user 시도 (IP 차단엔 무력).
         simulate_user=True,
         user_agent_mode="random",
-        enabled=True,
+        proxy=_brightdata_cn_proxy(),
+        enabled=False,
         note=(
-            "HTTP 403 anti-bot. simulate_user + UA 회전 시도해도 IP 차단까진 못 뚫음. "
-            "운영시 ngaPassportUid 쿠키 + 중국 IP 둘 다 필요."
+            "Bright Data CN residential proxy PoC (2026-05-20) 결과: "
+            "ERR_TUNNEL_CONNECTION_FAILED — NGA 가 proxy 패턴 자체 차단 추정. "
+            "본문 열람은 ngaPassportUid 쿠키 필수인데 계정 가입에 중국 본토 휴대폰 + "
+            "실명 인증 요구 → IP·계정 이중 장벽으로 out-of-scope. "
+            "BRIGHTDATA_CN_USERNAME/PASSWORD 환경변수 + enabled=True 로 재활성 가능."
         ),
     ),
 }

@@ -213,8 +213,14 @@ class TestSiteRegistryWiring:
             "bahamut_lineage", "bahamut_lineage_m", "bahamut_lineage_w",
             "bahamut_lineage_classic", "bahamut_aion", "bahamut_aion2",
             "bahamut_bns", "bahamut_tl",
-            "52pojie", "nga", "tieba",
+            "52pojie",
         }
         assert expected.issubset(enabled.keys()), (
             f"missing: {expected - enabled.keys()}"
         )
+
+    def test_china_anti_bot_sites_disabled(self):
+        """nga / tieba 는 Bright Data PoC (2026-05-20) 결과 anti-bot 차단 확인 →
+        out-of-scope, enabled=False 로 보관."""
+        assert SITES["nga"].enabled is False
+        assert SITES["tieba"].enabled is False
