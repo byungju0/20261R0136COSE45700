@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass
 
 import redis
+from apscheduler.events import EVENT_JOB_MISSED
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
 from crawl4ai.async_configs import CacheMode
@@ -397,6 +398,18 @@ class CrawlScheduler:
         async with self._run_lock:
             await self._pipeline.run()
 
+    def _on_job_missed(self, event) -> None:
+        # Story 5-1 운영 가시성 — misfire_grace_time 초과로 스킵된 잡 구조화 로그.
+        _logger.warning(
+            "scheduler_job_missed",
+            extra={
+                "correlation_id": "",
+                "service": _SERVICE_NAME,
+                "job_id": event.job_id,
+                "scheduled_run_time": str(event.scheduled_run_time),
+            },
+        )
+
     def setup_schedule(self) -> None:
         interval = int(os.environ.get("CRAWL_INTERVAL_MINUTES", "60"))
         self._scheduler.add_job(
@@ -408,6 +421,7 @@ class CrawlScheduler:
             id="crawl_pipeline",
             replace_existing=True,
         )
+        self._scheduler.add_listener(self._on_job_missed, EVENT_JOB_MISSED)
         _logger.info(
             "APScheduler 등록: %d분 주기", interval,
             extra={"correlation_id": "", "service": _SERVICE_NAME},

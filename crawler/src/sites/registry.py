@@ -18,8 +18,51 @@
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field  # noqa: F401
+
+
+# ──────────────────────────────────────────────
+# post_id 추출기 (사이트별)
+# ──────────────────────────────────────────────
+# storage._SAFE_ID_RE = ^[A-Za-z0-9_\-]+$ 통과하는 post_id 만 storage 가 허용한다.
+# URL 마지막 세그먼트를 그대로 쓰는 기본 lambda 는 querystring (?bsn=…&snA=…) 이나
+# 파일 확장자 (.html), 점/슬래시 포함 토큰에 대해 ValueError 를 던지므로
+# 아래 사이트들은 명시적 extractor 가 필요하다.
+
+_PTT_POST_ID_RE = re.compile(r"/M\.(\d+)(?:\.[A-Z]\.[0-9A-F]+)?\.html$")
+_PJ_POST_ID_RE = re.compile(r"/thread-(\d+)-(\d+)-(\d+)\.html$")
+_BAHAMUT_POST_ID_RE = re.compile(r"bsn=(\d+)&snA=(\d+)")
+_NGA_POST_ID_RE = re.compile(r"tid=(\d+)")
+
+
+def _ptt_post_id(url: str) -> str:
+    m = _PTT_POST_ID_RE.search(url)
+    if not m:
+        raise ValueError(f"PTT URL 에서 post_id 추출 실패: {url!r}")
+    return m.group(1)  # M.<timestamp>
+
+
+def _pojie_post_id(url: str) -> str:
+    m = _PJ_POST_ID_RE.search(url)
+    if not m:
+        raise ValueError(f"52pojie URL 에서 post_id 추출 실패: {url!r}")
+    return f"{m.group(1)}_{m.group(2)}_{m.group(3)}"  # thread-A-B-C
+
+
+def _bahamut_post_id(url: str) -> str:
+    m = _BAHAMUT_POST_ID_RE.search(url)
+    if not m:
+        raise ValueError(f"Bahamut URL 에서 post_id 추출 실패: {url!r}")
+    return f"bsn{m.group(1)}_snA{m.group(2)}"  # bsn842_snA12345
+
+
+def _nga_post_id(url: str) -> str:
+    m = _NGA_POST_ID_RE.search(url)
+    if not m:
+        raise ValueError(f"NGA URL 에서 post_id 추출 실패: {url!r}")
+    return m.group(1)  # tid 만 — 도메인은 site_id 로 구분
 
 
 def _brightdata_cn_proxy() -> dict | None:
@@ -167,6 +210,7 @@ def _make_bahamut_nc_site(name_zh: str, bsn: int) -> SiteConfig:
         description=f"바하무트 NC 게임 전용 보드 — {name_zh}",
         board_urls=[f"https://forum.gamer.com.tw/B.php?bsn={bsn}"],
         post_url_pattern=r"https://forum\.gamer\.com\.tw/C\.php\?bsn=\d+&snA=\d+(&|$)",
+        post_id_extractor=_bahamut_post_id,
         css_selector=".c-article__content, .c-post__body",
         image_filter=_bahamut_image_filter,
         headers=_TW_HEADERS,
@@ -216,6 +260,7 @@ SITES: dict[str, SiteConfig] = {
             "https://www.ptt.cc/bbs/Lineage/index.html",
         ],
         post_url_pattern=r"https://www\.ptt\.cc/bbs/Lineage/M\.\d+",
+        post_id_extractor=_ptt_post_id,
         css_selector="#main-content",
         image_filter=None,
         # over18 폼은 모든 ptt 보드에 동일 — yes 버튼 자동 클릭.
@@ -235,6 +280,7 @@ SITES: dict[str, SiteConfig] = {
             "https://www.ptt.cc/bbs/Mobile-game/index.html",
         ],
         post_url_pattern=r"https://www\.ptt\.cc/bbs/Mobile-game/M\.\d+",
+        post_id_extractor=_ptt_post_id,
         css_selector="#main-content",
         image_filter=None,
         js_code=[
@@ -302,6 +348,7 @@ SITES: dict[str, SiteConfig] = {
             "https://www.52pojie.cn/forum-16-4.html",
         ],
         post_url_pattern=r"https://www\.52pojie\.cn/thread-\d+-\d+-\d+\.html",
+        post_id_extractor=_pojie_post_id,
         # Discuz! 포럼: .t_f 가 본문 div 표준이지만 sticky/공지 스레드는 layout 이
         # 다름. 그래서 본문 후보 셀렉터를 OR 로 묶어 누락 없게.
         #   .t_f                — 일반 게시글 본문
@@ -351,6 +398,7 @@ SITES: dict[str, SiteConfig] = {
             "https://ngabbs.com/thread.php?fid=489",     # 미러 도메인 fallback
         ],
         post_url_pattern=r"https://(bbs\.nga\.cn|ngabbs\.com)/read\.php\?tid=\d+",
+        post_id_extractor=_nga_post_id,
         # NGA read.php: 본문 #postcontent0 (첫 글) + .postcontent (답글).
         css_selector="#postcontent0, .postcontent, .postcontent_main",
         image_filter=_nga_image_filter,
